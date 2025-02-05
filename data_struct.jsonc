@@ -1,0 +1,16 @@
+[
+  // User Object
+  {
+    "username": "string",
+    "password": "string" // argon2 hash
+  },
+
+  // Message Object
+  {
+    "sender": "string", // must be in username
+    "receiver": "string", // must be in username
+    "message": "string",
+    "delivered": "boolean",
+    "timestamp": "string" // ISO 8601
+  }
+]
