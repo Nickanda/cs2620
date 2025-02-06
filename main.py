@@ -1,6 +1,7 @@
 import socket
 import selectors
 import types
+import database_wrapper
 
 sel = selectors.DefaultSelector()
 
@@ -28,6 +29,9 @@ PORT = 54400
 #
 # 
 
+users = None
+messages = None
+
 def accept_wrapper(sock):
     conn, addr = sock.accept()
     print(f"Accepted connection from {addr}")
@@ -40,7 +44,7 @@ def service_connection(key, mask):
     sock = key.fileobj
     data = key.data
     if mask & selectors.EVENT_READ:
-        recv_data = sock.recv(1024)
+        recv_data = sock.recv(4096)
         if recv_data:
             data.outb += recv_data
         else:
@@ -50,18 +54,49 @@ def service_connection(key, mask):
     if mask & selectors.EVENT_WRITE:
         if data.outb:
             words = data.outb.decode("utf-8").split()
-            if words[0] == "count":
-                return_data = str((len(words)-1)).encode("utf-8")
-            elif words[0] == "translate":
-                return_data = trans_to_pig_latin(words[1:])
-                return_data = return_data.encode("utf-8")
+            if words[0] == "create":
+                username = words[1]
+                password = " ".join(words[2:])
+
+                if username.isalnum() == False:
+                    return_data = "error Username must be alphanumeric".encode("utf-8")
+                    return
+
+                if username in users:
+                    return_data = "error Username already exists".encode("utf-8")
+                    return
+
+                users[username] = {
+                    "password": password
+                }
+
+                return_data = f"login {username}".encode("utf-8")
+                database_wrapper.save_database(users, messages)
+
+            elif words[0] == "login":
+                username = words[1]
+                password = " ".join(words[2:])
+
+                if username not in users:
+                    return_data = "error Username does not exist".encode("utf-8")
+                    return
+
+                if users[username]["password"] != password:
+                    return_data = "error Incorrect password".encode("utf-8")
+                    return
+
+                return_data = f"login {username}".encode("utf-8")
+                database_wrapper.save_database(users, messages)
             else:
-                print ("No valid command")
-                return_data = "Unknown command".encode("utf-8")
+                command = " ".join(words)
+                print(f"No valid command: {command}")
+                return_data = "error Unknown command".encode("utf-8")
             sent = sock.send(return_data)
             data.outb = data.outb[sent:]
 
 if __name__ == "__main__":
+    users, messages = database_wrapper.load_database()
+
     lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     lsock.bind((HOST, PORT))
     lsock.listen()
@@ -80,48 +115,3 @@ if __name__ == "__main__":
         print("Caught keyboard interrupt, exiting")
     finally:
         sel.close()
-
-
-import tkinter as tk
-from tkinter import messagebox
-
-def create_user():
-    username = entry_username.get()
-    email = entry_email.get()
-    password = entry_password.get()
-    
-    if username and email and password:
-        print(f"User Created: {username}, {email}")
-        messagebox.showinfo("Success", "User created successfully!")
-    else:
-        messagebox.showerror("Error", "All fields are required!")
-
-# Create main window
-root = tk.Tk()
-root.title("User Creation")
-root.geometry("300x200")
-
-# Username Label and Entry
-label_username = tk.Label(root, text="Username:")
-label_username.pack()
-entry_username = tk.Entry(root)
-entry_username.pack()
-
-# Email Label and Entry
-label_email = tk.Label(root, text="Email:")
-label_email.pack()
-entry_email = tk.Entry(root)
-entry_email.pack()
-
-# Password Label and Entry
-label_password = tk.Label(root, text="Password:")
-label_password.pack()
-entry_password = tk.Entry(root, show="*")
-entry_password.pack()
-
-# Submit Button
-button_submit = tk.Button(root, text="Create User", command=create_user)
-button_submit.pack()
-
-# Run the Tkinter loop
-root.mainloop()
