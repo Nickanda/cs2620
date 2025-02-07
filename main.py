@@ -155,25 +155,29 @@ def service_connection(key, mask):
                 else: 
                     messages["undelivered"].append(msg_obj)
 
+                send_message(sock, command, data, "message_sent".encode())
                 return 
-        
+            
             elif words[0] == "view_msg": 
                 # user decides on the number of messages to view
                 receiver = words[1] # i.e. logged in user
                 num_msg_view = words[2]
                 
+                to_view = []
                 to_deliver = ""
                 for msg_obj in messages["undelivered"]: 
                     if num_msg_view == 0: 
                         pass 
-
+                        
                     if msg_obj["receiver"] == receiver: 
                         to_deliver += (msg_obj["msg"] + " \0 ")
                         messages["delivered"].append(msg_obj)
                         messages["undelivered"].delete(msg_obj)
+                        to_view.append(msg_obj)
 
                         num_msg_view -= 1
-
+                
+                send_message(sock, command, data, to_deliver.join("\0").encode())
                 return
 
             else:
