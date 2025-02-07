@@ -29,11 +29,11 @@ def launch_login(s: socket.SocketType, root: tk.Tk):
 def launch_window(s: socket.SocketType):
     # Create main window
     root = tk.Tk()
-    root.title("User Creation")
+    root.title("User Signup")
     root.geometry("300x200")
 
     # Username Label and Entry
-    label_username = tk.Label(root, text="Username: (alphanumeric only)")
+    label_username = tk.Label(root, text="Username (alphanumeric only):")
     label_username.pack()
     username_var = tk.StringVar(root)
     entry_username = tk.Entry(root, textvariable=username_var)
@@ -51,7 +51,7 @@ def launch_window(s: socket.SocketType):
     button_submit.pack()
 
     # Login Button
-    button_submit = tk.Button(root, text="Login", command=lambda: launch_login(s, root))
+    button_submit = tk.Button(root, text="Switch to Login", command=lambda: launch_login(s, root))
     button_submit.pack()
 
     root.mainloop()

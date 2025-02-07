@@ -2,7 +2,9 @@ import socket
 from tkinter import messagebox
 import screens.login
 import screens.signup
+import screens.home
 import screens.messages
+import screens.user_list
 
 HOST = "127.0.0.1"
 PORT = 54400
@@ -19,18 +21,25 @@ def connect_socket():
                 screens.signup.launch_window(s)
             elif current_state == "login":
                 screens.login.launch_window(s)
-            elif current_state == "messages":
-                screens.messages.launch_window(s, logged_in_user)
+            elif current_state == "home" and logged_in_user is not None:
+                screens.home.launch_window(s, logged_in_user)
+            elif current_state == "messages" and logged_in_user is not None:
+                screens.messages.launch_window(s, state_data if state_data else "")
+            elif current_state == "user_list":
+                screens.user_list.launch_window(s, state_data if state_data else "")
+            else:
+                screens.signup.launch_window(s)
 
-            data = s.recv(1028)
+            data = s.recv(1024)
             words = data.decode("utf-8").split()
-            
-            print(words)
 
             if words[0] == "login":
                 logged_in_user = words[1]
                 current_state = "messages"
                 print(f"Logged in as {logged_in_user}")
+            elif words[0] == "user_list":
+                current_state = "user_list"
+                state_data = "\n".join(words[1:])
             elif words[0] == "error":
                 print(f"Error: {' '.join(words[1:])}")
                 messagebox.showerror("Error", f"{' '.join(words[1:])}")

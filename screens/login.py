@@ -7,15 +7,15 @@ import screens.signup
 hasher = PasswordHasher()
 
 def login(s: socket.SocketType, root: tk.Tk, username: tk.StringVar, password: tk.StringVar):
-    username_str = username.get()
-    password_str = password.get()
+    username_str = username.get().strip()
+    password_str = password.get().strip()
 
     if username_str != "" and password_str != "":
         if username_str.isalnum() == False:
             messagebox.showerror("Error", "Username must be alphanumeric")
             return
         
-        message = f"login {username_str} {password}".encode("utf-8")
+        message = f"login {username_str} {password_str}".encode("utf-8")
         s.sendall(message)
         root.destroy()
     else:
@@ -28,11 +28,11 @@ def launch_signup(s: socket.SocketType, root: tk.Tk):
 def launch_window(s: socket.SocketType):
     # Create main window
     root = tk.Tk()
-    root.title("User Creation")
+    root.title("User Login")
     root.geometry("300x200")
 
     # Username Label and Entry
-    label_username = tk.Label(root, text="Username: (alphanumeric only)")
+    label_username = tk.Label(root, text="Username (alphanumeric only):")
     label_username.pack()
     username_var = tk.StringVar(root)
     entry_username = tk.Entry(root, textvariable=username_var)
@@ -50,7 +50,7 @@ def launch_window(s: socket.SocketType):
     button_submit.pack()
 
     # Signup Button
-    button_submit = tk.Button(root, text="Signup", command=lambda: launch_signup(s, root))
+    button_submit = tk.Button(root, text="Switch to Signup", command=lambda: launch_signup(s, root))
     button_submit.pack()
 
     root.mainloop()

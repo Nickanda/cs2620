@@ -3,6 +3,8 @@ import selectors
 import types
 import database_wrapper
 import argon2
+import fnmatch
+import datetime
 
 sel = selectors.DefaultSelector()
 hasher = argon2.PasswordHasher()
@@ -25,20 +27,16 @@ PORT = 54400
 # 7. Delete an account. You will need to specify the semantics of deleting an account that contains unread messages.
 
 # ------------------------------------------------------------------------------
-# def login
-#   
-# def create_account
-#
-# 
 
 users = None
 messages = None
+
 
 def accept_wrapper(sock):
     conn, addr = sock.accept()
     print(f"Accepted connection from {addr}")
     conn.setblocking(False)
-    data = types.SimpleNamespace(addr=addr, inb=b"", outb=b"")
+    data = types.SimpleNamespace(addr=addr, inb=b"", outb=b"", addr=addr)
     events = selectors.EVENT_READ | selectors.EVENT_WRITE
     sel.register(conn, events, data=data)
 
@@ -51,7 +49,7 @@ def service_connection(key, mask):
     data = key.data
     if mask & selectors.EVENT_READ:
         try:
-            recv_data = sock.recv(1028)
+            recv_data = sock.recv(1024)
         except ConnectionResetError:
             recv_data = None
 
@@ -61,6 +59,13 @@ def service_connection(key, mask):
             print(f"Closing connection to {data.addr}")
             sel.unregister(sock)
             sock.close()
+
+            for user in users:
+                if users[user]["addr"] == data.addr:
+                    users[user]["logged_in"] = False
+                    break
+            
+            database_wrapper.save_database(users, messages)
     if mask & selectors.EVENT_WRITE:
         if data.outb:
             words = data.outb.decode("utf-8").split(" ")
@@ -78,7 +83,9 @@ def service_connection(key, mask):
                     return
 
                 users[username] = {
-                    "password": password
+                    "password": password,
+                    "logged_in": True,
+                    "port": data.addr
                 }
 
                 send_message(sock, command, data, f"login {username}".encode("utf-8"))
@@ -99,7 +106,76 @@ def service_connection(key, mask):
                     return
 
                 send_message(sock, command, data, f"login {username}".encode("utf-8"))
-                database_wrapper.save_database(users, messages)
+
+            elif words[0] == "search":
+                pattern = words[1] if len(words) > 1 else "*"
+                matched_users = fnmatch.filter(users.keys(), pattern)
+                response = f"user_list {' '.join(matched_users)}"
+
+                send_message(sock, command, data, response.encode("utf-8")) 
+            
+            elif words[0] == "delete_acct": 
+                acct = words[1]
+                # first delete account from `users`
+                del users[acct]
+                
+                # when deleting an account, delete all messages that a user is the sender or receiver of 
+                def del_acct_msgs(msg_obj_lst, acct): 
+                    for msg_obj in msg_obj_lst: 
+                        if msg_obj["sender"] == acct or msg_obj["receiver"] == acct: 
+                            msg_obj_lst.remove(msg_obj)
+                    return msg_obj_lst
+
+                messages["delivered"] = del_acct_msgs(messages["delivered"], acct)
+                messages["undelivered"] = del_acct_msgs(messages["undelivered"], acct)
+                
+                send_message(sock, command, data, "account_deleted".encode())
+
+            elif words[0] == "send_msg":
+                #! assumptions about the thing
+                sender = words[1]
+                receiver = words[2]
+                message = words[3]
+
+                # if message is sent to a user that does not exist, raise an error
+                if receiver not in users: 
+                    send_message(sock, command, data, "error Receiver does not exist")
+                    return 
+                
+                msg_obj = {"id": len(messages["delivered"]) + len(messages["undelivered"]) + 1,
+                           "sender": sender, 
+                           "receiver": receiver, 
+                           "message": message,
+                           "timestamp": datetime.datetime.now()}
+
+                # if message is sent to a logged in user, mark it as delivered
+                if users[receiver["logged_in"]]: 
+                    messages["delivered"].append(msg_obj)
+                # if message is sent to a user that is logged out, mark it as undelivered
+                else: 
+                    messages["undelivered"].append(msg_obj)
+
+                return 
+        
+            elif words[0] == "view_msg": 
+                # user decides on the number of messages to view
+                receiver = words[1] # i.e. logged in user
+                num_msg_view = words[2]
+                
+                to_deliver = ""
+                for msg_obj in messages["undelivered"]: 
+                    if num_msg_view == 0: 
+                        pass 
+
+                    if msg_obj["receiver"] == receiver: 
+                        to_deliver += (msg_obj["msg"] + " \0 ")
+                        messages["delivered"].append(msg_obj)
+                        messages["undelivered"].delete(msg_obj)
+
+                        num_msg_view -= 1
+
+                return
+
             else:
                 print(f"No valid command: {command}")
                 data.outb = data.outb[len(command):]
