@@ -14,3 +14,9 @@
 
 - We need to exit the if statement within the service connection function in the server side in the middle (e.g., if we want to filter for inputs) - this can be done by a quick helper function
 - For some reason, we are not receiving the entire packet of data given the size of the data - tried increasing buffer size but that doesn't seem to be changing anything
+
+## Feb. 6, 2025
+
+- Resolved the previous two issues - the first was implemented by the helper function, the second was resolved because we were only truncating the `data.outb` by the length of the sent message, which is not always guaranteed to be the same as the input message
+- Added back in capability for the server to run independently of the clients - that is, if a client disconnects, the server won't also crash
+-

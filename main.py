@@ -2,8 +2,10 @@ import socket
 import selectors
 import types
 import database_wrapper
+import argon2
 
 sel = selectors.DefaultSelector()
+hasher = argon2.PasswordHasher()
 
 HOST = "127.0.0.1"
 PORT = 54400
@@ -40,11 +42,19 @@ def accept_wrapper(sock):
     events = selectors.EVENT_READ | selectors.EVENT_WRITE
     sel.register(conn, events, data=data)
 
+def send_message(sock: socket.socket, command: str, data, message: bytes):
+    sock.send(message)
+    data.outb = data.outb[len(command):]
+
 def service_connection(key, mask):
     sock = key.fileobj
     data = key.data
     if mask & selectors.EVENT_READ:
-        recv_data = sock.recv(4096)
+        try:
+            recv_data = sock.recv(1028)
+        except ConnectionResetError:
+            recv_data = None
+
         if recv_data:
             data.outb += recv_data
         else:
@@ -53,24 +63,25 @@ def service_connection(key, mask):
             sock.close()
     if mask & selectors.EVENT_WRITE:
         if data.outb:
-            words = data.outb.decode("utf-8").split()
+            words = data.outb.decode("utf-8").split(" ")
+            command = " ".join(words)
             if words[0] == "create":
                 username = words[1]
                 password = " ".join(words[2:])
 
                 if username.isalnum() == False:
-                    return_data = "error Username must be alphanumeric".encode("utf-8")
+                    send_message(sock, command, data, "error Username must be alphanumeric".encode("utf-8"))
                     return
 
                 if username in users:
-                    return_data = "error Username already exists".encode("utf-8")
+                    send_message(sock, command, data, "error Username already exists".encode("utf-8"))
                     return
 
                 users[username] = {
                     "password": password
                 }
 
-                return_data = f"login {username}".encode("utf-8")
+                send_message(sock, command, data, f"login {username}".encode("utf-8"))
                 database_wrapper.save_database(users, messages)
 
             elif words[0] == "login":
@@ -78,21 +89,20 @@ def service_connection(key, mask):
                 password = " ".join(words[2:])
 
                 if username not in users:
-                    return_data = "error Username does not exist".encode("utf-8")
+                    send_message(sock, command, data, "error Username does not exist".encode("utf-8"))
                     return
 
-                if users[username]["password"] != password:
-                    return_data = "error Incorrect password".encode("utf-8")
+                try:
+                    hasher.verify(users[username]["password"], password)
+                except argon2.exceptions.VerifyMismatchError:
+                    send_message(sock, command, data, "error Incorrect password".encode("utf-8"))
                     return
 
-                return_data = f"login {username}".encode("utf-8")
+                send_message(sock, command, data, f"login {username}".encode("utf-8"))
                 database_wrapper.save_database(users, messages)
             else:
-                command = " ".join(words)
                 print(f"No valid command: {command}")
-                return_data = "error Unknown command".encode("utf-8")
-            sent = sock.send(return_data)
-            data.outb = data.outb[sent:]
+                data.outb = data.outb[len(command):]
 
 if __name__ == "__main__":
     users, messages = database_wrapper.load_database()
@@ -113,5 +123,6 @@ if __name__ == "__main__":
                     service_connection(key, mask)
     except KeyboardInterrupt:
         print("Caught keyboard interrupt, exiting")
+        sel.close()
     finally:
         sel.close()
