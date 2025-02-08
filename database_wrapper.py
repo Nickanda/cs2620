@@ -25,7 +25,10 @@ def load_database():
     if not os.path.exists(messages_database_path):
       with open(messages_database_path, "w") as messages_file:
         json.dump({}, messages_file)
-        messages = {}
+        messages = {
+            "undelivered": [],
+            "delivered": []
+        }
     else:
       with open(messages_database_path, "r") as messages_file:
         messages = json.load(messages_file)

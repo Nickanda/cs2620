@@ -2,11 +2,10 @@ import tkinter as tk
 from tkinter import messagebox
 from argon2 import PasswordHasher
 import socket
-import screens.signup
 
 hasher = PasswordHasher()
 
-def login(s: socket.SocketType, root: tk.Tk, recipient: tk.StringVar, message: tk.StringVar, current_user: str):
+def login(s: socket.SocketType, root: tk.Tk, recipient: tk.StringVar, message, current_user: str):
     recipient_str = recipient.get().strip()
     message_str = message.get().strip()
 
@@ -20,10 +19,6 @@ def login(s: socket.SocketType, root: tk.Tk, recipient: tk.StringVar, message: t
         root.destroy()
     else:
         messagebox.showerror("Error", "All fields are required")
-
-def launch_signup(s: socket.SocketType, root: tk.Tk):
-    root.destroy()
-    screens.signup.launch_window(s)
 
 def launch_window(s: socket.SocketType, current_user: str):
     # Create main window
@@ -41,12 +36,11 @@ def launch_window(s: socket.SocketType, current_user: str):
     # Message Label and Entry
     label_message = tk.Label(root, text="Message:")
     label_message.pack()
-    message_var = tk.StringVar()
-    entry_message = tk.Text(root, textvariable=message_var)
+    entry_message = tk.Text(root)
     entry_message.pack()
 
     # Submit Button
-    button_submit = tk.Button(root, text="Send Message", command=lambda: login(s, root, recipient_var, message_var, current_user))
+    button_submit = tk.Button(root, text="Send Message", command=lambda: login(s, root, recipient_var, entry_message, current_user))
     button_submit.pack()
 
     root.mainloop()

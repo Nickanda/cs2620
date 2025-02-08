@@ -36,7 +36,7 @@ def accept_wrapper(sock):
     conn, addr = sock.accept()
     print(f"Accepted connection from {addr}")
     conn.setblocking(False)
-    data = types.SimpleNamespace(addr=addr, inb=b"", outb=b"", addr=addr)
+    data = types.SimpleNamespace(addr=addr, inb=b"", outb=b"")
     events = selectors.EVENT_READ | selectors.EVENT_WRITE
     sel.register(conn, events, data=data)
 
@@ -61,8 +61,9 @@ def service_connection(key, mask):
             sock.close()
 
             for user in users:
-                if users[user]["addr"] == data.addr:
+                if users[user]["addr"] == data.addr[1]:
                     users[user]["logged_in"] = False
+                    users[user]["addr"] = 0
                     break
             
             database_wrapper.save_database(users, messages)
@@ -85,7 +86,7 @@ def service_connection(key, mask):
                 users[username] = {
                     "password": password,
                     "logged_in": True,
-                    "port": data.addr
+                    "addr": data.addr[1]
                 }
 
                 send_message(sock, command, data, f"login {username}".encode("utf-8"))
@@ -107,10 +108,23 @@ def service_connection(key, mask):
 
                 send_message(sock, command, data, f"login {username}".encode("utf-8"))
 
+            elif words[0] == "logout":
+                username = words[1]
+
+                if username not in users:
+                    send_message(sock, command, data, "error Username does not exist".encode("utf-8"))
+                    return
+                
+                users[username]["logged_in"] = False
+                users[username]["addr"] = 0
+    
+                send_message(sock, command, data, f"logout".encode("utf-8"))
+
             elif words[0] == "search":
                 pattern = words[1] if len(words) > 1 else "*"
                 matched_users = fnmatch.filter(users.keys(), pattern)
                 response = f"user_list {' '.join(matched_users)}"
+                print(response)
 
                 send_message(sock, command, data, response.encode("utf-8")) 
             
@@ -179,7 +193,17 @@ def service_connection(key, mask):
                 
                 send_message(sock, command, data, to_deliver.join("\0").encode())
                 return
+            
+            elif words[0] == "refresh_home":
+                # Count up undelivered messages
+                username = words[1]
 
+                num_messages = 0
+                for msg_obj in messages["undelivered"]:
+                    if msg_obj["receiver"] == username:
+                        num_messages += 1
+
+                send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
             else:
                 print(f"No valid command: {command}")
                 data.outb = data.outb[len(command):]
