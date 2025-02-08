@@ -33,25 +33,19 @@ def launch_window(s: socket.SocketType):
     root.geometry("300x200")
 
     # Username Label and Entry
-    label_username = tk.Label(root, text="Username (alphanumeric only):")
-    label_username.pack()
+    tk.Label(root, text="Username (alphanumeric only):").pack()
     username_var = tk.StringVar(root)
-    entry_username = tk.Entry(root, textvariable=username_var)
-    entry_username.pack()
+    tk.Entry(root, textvariable=username_var).pack()
 
     # Password Label and Entry
-    label_password = tk.Label(root, text="Password:")
-    label_password.pack()
+    tk.Label(root, text="Password:").pack()
     password_var = tk.StringVar()
-    entry_password = tk.Entry(root, show="*", textvariable=password_var)
-    entry_password.pack()
+    tk.Entry(root, show="*", textvariable=password_var).pack()
 
     # Submit Button
-    button_submit = tk.Button(root, text="Create User", command=lambda: create_user(s, root, username_var, password_var))
-    button_submit.pack()
+    tk.Button(root, text="Create User", command=lambda: create_user(s, root, username_var, password_var)).pack()
 
     # Login Button
-    button_submit = tk.Button(root, text="Switch to Login", command=lambda: launch_login(s, root))
-    button_submit.pack()
+    tk.Button(root, text="Switch to Login", command=lambda: launch_login(s, root)).pack()
 
     root.mainloop()

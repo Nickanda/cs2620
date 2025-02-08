@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import scrolledtext
 import socket
-import screens.home
 
 def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
     search_str = search.get().strip()
@@ -40,14 +39,12 @@ def launch_window(s: socket.SocketType, user_list: list[str], username: str):
     # Create main window
     root = tk.Tk()
     root.title("User List")
-    root.geometry("300x800")
+    root.geometry("400x600")
 
     # Search Label and Entry
-    label_search = tk.Label(root, text="Enter search pattern (* for all):")
-    label_search.pack()
+    tk.Label(root, text="Enter search pattern (* for all):").pack
     search_var = tk.StringVar(root)
-    entry_search = tk.Entry(root, textvariable=search_var)
-    entry_search.pack()
+    tk.Entry(root, textvariable=search_var).pack()
 
     # List users
     text_area = scrolledtext.ScrolledText(root)
@@ -55,19 +52,16 @@ def launch_window(s: socket.SocketType, user_list: list[str], username: str):
     text_area.configure(state ='disabled') 
     text_area.pack()
 
-    # Back to home 
-    button_home = tk.Button(root, text="Home", command=lambda: launch_home(s, root, username))
-    button_home.pack()
-    
     # Pagination Buttons
-    button_prev = tk.Button(root, text="Previous 25", command=lambda: pagination(current_index, "prev"), state=tk.DISABLED if current_index == 0 else tk.NORMAL)
-    button_prev.pack(side=tk.LEFT, padx=10, pady=10)
+    tk.Button(root, text="Previous 25", command=lambda: pagination(current_index, "prev"), state=tk.DISABLED if current_index == 0 else tk.NORMAL).pack()
 
     # Submit Button
-    button_submit = tk.Button(root, text="Search", command=lambda: search(s, root, search_var))
-    button_submit.pack(side=tk.LEFT, padx=10, pady=10)
+    tk.Button(root, text="Search", command=lambda: search(s, root, search_var)).pack()
 
-    button_next = tk.Button(root, text="Next 25", command=lambda: pagination(current_index, "nexr"), state=tk.DISABLED if current_index + 25 >= len(user_list) else tk.NORMAL)
-    button_next.pack(side=tk.LEFT, padx=10, pady=10)
+    # Pagination Button
+    tk.Button(root, text="Next 25", command=lambda: pagination(current_index, "nexr"), state=tk.DISABLED if current_index + 25 >= len(user_list) else tk.NORMAL).pack()
+
+    # Back to home 
+    tk.Button(root, text="Home", command=lambda: launch_home(s, root, username)).pack(pady=10)
 
     root.mainloop()

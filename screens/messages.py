@@ -1,18 +1,55 @@
 import tkinter as tk
+from tkinter import scrolledtext
 from argon2 import PasswordHasher
 import socket
 
 hasher = PasswordHasher()
 
+def get_undelivered_messages():
+    pass
 
+def get_delivered_messages():
+    pass
+
+def pagination(index: int, operation: str):
+    if operation == "next":
+        index += 25
+    elif operation == "prev":
+        index -= 25
+
+def launch_home(s: socket.SocketType, root: tk.Tk, username: str): 
+    message = f"refresh_home {username}".encode("utf-8")
+    s.sendall(message)
+    root.destroy()
 
 def launch_window(s: socket.SocketType, messages: list[str]):
+    current_index = 0
+
     # Create main window
     root = tk.Tk()
     root.title("Messages")
     root.geometry("300x200")
 
+    # Undelivered Messages
+    tk.Label(root, text="Number of Messages to Get:").pack()
+    num_messages_var = tk.IntVar(root)
+    tk.Entry(root, textvariable=num_messages_var).pack()
     
+    tk.Button(root, text=f"Get # Undelivered Messages", command=lambda: get_undelivered_messages).pack()
+    tk.Button(root, text=f"Get # Delivered Messages", command=lambda: get_delivered_messages).pack()
+
+    message_list = scrolledtext.ScrolledText(root)
+    message_list.insert(tk.INSERT, "Messages:\n" + '\n'.join(messages)) 
+    message_list.configure(state ='disabled') 
+    message_list.pack()
+
+    # Pagination Buttons
+    tk.Button(root, text="Previous 25", command=lambda: pagination(current_index, "prev"), state=tk.DISABLED if current_index == 0 else tk.NORMAL).pack()
+
+    # Pagination Button
+    tk.Button(root, text="Next 25", command=lambda: pagination(current_index, "nexr"), state=tk.DISABLED if current_index + 25 >= len(user_list) else tk.NORMAL).pack()
+
+    tk.Button(root, text="Home", command=lambda: launch_home(s, root)).pack(pady=10)
 
     root.mainloop()
 

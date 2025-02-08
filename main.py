@@ -89,7 +89,7 @@ def service_connection(key, mask):
                     "addr": data.addr[1]
                 }
 
-                send_message(sock, command, data, f"login {username}".encode("utf-8"))
+                send_message(sock, command, data, f"login {username} 0".encode("utf-8"))
                 database_wrapper.save_database(users, messages)
 
             elif words[0] == "login":
@@ -105,8 +105,20 @@ def service_connection(key, mask):
                 except argon2.exceptions.VerifyMismatchError:
                     send_message(sock, command, data, "error Incorrect password".encode("utf-8"))
                     return
+                
+                if users[username]["logged_in"]:
+                    send_message(sock, command, data, "error User already logged in".encode("utf-8"))
+                    return
 
-                send_message(sock, command, data, f"login {username}".encode("utf-8"))
+                num_messages = 0
+                for msg_obj in messages["undelivered"]:
+                    if msg_obj["receiver"] == username:
+                        num_messages += 1
+
+                users[username]["logged_in"] = True
+                users[username]["addr"] = data.addr[1]
+
+                send_message(sock, command, data, f"login {username} {num_messages}".encode("utf-8"))
 
             elif words[0] == "logout":
                 username = words[1]

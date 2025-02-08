@@ -38,6 +38,8 @@ def connect_socket():
 
             if words[0] == "login":
                 logged_in_user = words[1]
+                new_messages = int(words[2])
+                state_data = new_messages
                 current_state = "home"
                 print(f"Logged in as {logged_in_user}")
             elif words[0] == "user_list":
@@ -50,7 +52,6 @@ def connect_socket():
                 new_messages = int(words[1])
                 state_data = new_messages
                 current_state = "home"
-
             else: 
                 command = " ".join(words)
                 print(f"No valid command: {command}")
