@@ -9,15 +9,9 @@ import screens.delete_messages
 
 hasher = PasswordHasher()
 
-# Global variable holding the currently logged in username.
-# current_user = None
-
-# We keep a reference to the home window so that we can close it on logout or account deletion.
-# home_root = None
-
-def open_read_messages(s: socket.socket, root: tk.Tk):
+def open_read_messages(s: socket.socket, root: tk.Tk, username: str):
     root.destroy()
-    screens.messages.launch_window(s, [])
+    screens.messages.launch_window(s, [], username)
 
 def open_send_message(s: socket.socket, root: tk.Tk, current_user: str):
     root.destroy()
@@ -32,22 +26,20 @@ def open_user_list(s: socket.socket, root: tk.Tk, username: str):
     screens.user_list.launch_window(s, [], username)
 
 def logout(s: socket.socket, root: tk.Tk, username: str):
-    message = f"logout {username}".encode("utf-8")
-    s.sendall(message)
+    s.sendall(f"logout {username}".encode("utf-8"))
     root.destroy()
 
 def delete_account(s: socket.socket, root: tk.Tk, username: str):
-    message = f"delete_acct {username}".encode("utf-8")
-    s.sendall(message)
+    s.sendall(f"delete_acct {username}".encode("utf-8"))
     root.destroy()
 
 def launch_window(s: socket.SocketType, username: str, num_messages: int):
     # Create main window
     home_root = tk.Tk()
-    home_root.title("Home")
+    home_root.title(f"Home - {username}")
     home_root.geometry("300x200")
 
-    tk.Button(home_root, text=f"Read Messages ({num_messages})", command=lambda: open_read_messages()).pack()
+    tk.Button(home_root, text=f"Read Messages ({num_messages})", command=lambda: open_read_messages(s, home_root, username)).pack()
     tk.Button(home_root, text="Send Message", command=lambda: open_send_message(s, home_root, username)).pack()
     tk.Button(home_root, text="Delete Messages", command=lambda: open_delete_messages(s, home_root, username)).pack()
     tk.Button(home_root, text="User List", command=lambda: open_user_list(s, home_root, username)).pack()

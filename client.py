@@ -24,12 +24,10 @@ def connect_socket():
             elif current_state == "home" and logged_in_user is not None:
                 screens.home.launch_window(s, logged_in_user, 0)
             elif current_state == "messages" and logged_in_user is not None:
-                screens.messages.launch_window(s, state_data if state_data else "")
+                print(state_data)
+                screens.messages.launch_window(s, state_data if state_data else [], logged_in_user)
             elif current_state == "user_list" and logged_in_user is not None:
                 screens.user_list.launch_window(s, state_data if state_data else "")
-            elif current_state == "logout":
-                logged_in_user = None
-                current_state = "signup"
             else:
                 screens.signup.launch_window(s)
 
@@ -49,9 +47,14 @@ def connect_socket():
                 print(f"Error: {' '.join(words[1:])}")
                 messagebox.showerror("Error", f"{' '.join(words[1:])}")
             elif words[0] == "refresh_home":
-                new_messages = int(words[1])
-                state_data = new_messages
+                state_data = int(words[1])
                 current_state = "home"
+            elif words[0] == "messages":
+                state_data = [word.split('_') for word in words[1].split("\0")]
+                current_state = "messages"
+            elif words[0] == "logout":
+                logged_in_user = None
+                current_state = "signup"
             else: 
                 command = " ".join(words)
                 print(f"No valid command: {command}")

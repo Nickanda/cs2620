@@ -30,7 +30,7 @@ PORT = 54400
 
 users = None
 messages = None
-
+settings = None
 
 def accept_wrapper(sock):
     conn, addr = sock.accept()
@@ -66,7 +66,7 @@ def service_connection(key, mask):
                     users[user]["addr"] = 0
                     break
             
-            database_wrapper.save_database(users, messages)
+            database_wrapper.save_database(users, messages, settings)
     if mask & selectors.EVENT_WRITE:
         if data.outb:
             words = data.outb.decode("utf-8").split(" ")
@@ -90,7 +90,7 @@ def service_connection(key, mask):
                 }
 
                 send_message(sock, command, data, f"login {username} 0".encode("utf-8"))
-                database_wrapper.save_database(users, messages)
+                database_wrapper.save_database(users, messages, settings)
 
             elif words[0] == "login":
                 username = words[1]
@@ -119,6 +119,7 @@ def service_connection(key, mask):
                 users[username]["addr"] = data.addr[1]
 
                 send_message(sock, command, data, f"login {username} {num_messages}".encode("utf-8"))
+                database_wrapper.save_database(users, messages, settings)
 
             elif words[0] == "logout":
                 username = words[1]
@@ -130,15 +131,14 @@ def service_connection(key, mask):
                 users[username]["logged_in"] = False
                 users[username]["addr"] = 0
     
-                send_message(sock, command, data, f"logout".encode("utf-8"))
+                send_message(sock, command, data, "logout".encode("utf-8"))
+                database_wrapper.save_database(users, messages, settings)
 
             elif words[0] == "search":
                 pattern = words[1] if len(words) > 1 else "*"
                 matched_users = fnmatch.filter(users.keys(), pattern)
-                response = f"user_list {' '.join(matched_users)}"
-                print(response)
 
-                send_message(sock, command, data, response.encode("utf-8")) 
+                send_message(sock, command, data, f"user_list {' '.join(matched_users)}".encode("utf-8")) 
             
             elif words[0] == "delete_acct": 
                 acct = words[1]
@@ -147,64 +147,100 @@ def service_connection(key, mask):
                 
                 # when deleting an account, delete all messages that a user is the sender or receiver of 
                 def del_acct_msgs(msg_obj_lst, acct): 
-                    for msg_obj in msg_obj_lst: 
+                    for ind, msg_obj in enumerate(msg_obj_lst): 
                         if msg_obj["sender"] == acct or msg_obj["receiver"] == acct: 
-                            msg_obj_lst.remove(msg_obj)
-                    return msg_obj_lst
+                            del msg_obj_lst[ind]
 
-                messages["delivered"] = del_acct_msgs(messages["delivered"], acct)
-                messages["undelivered"] = del_acct_msgs(messages["undelivered"], acct)
+                del_acct_msgs(messages["delivered"], acct)
+                del_acct_msgs(messages["undelivered"], acct)
                 
-                send_message(sock, command, data, "account_deleted".encode())
+                send_message(sock, command, data, "logout".encode("utf-8"))
+                database_wrapper.save_database(users, messages, settings)
 
             elif words[0] == "send_msg":
                 #! assumptions about the thing
                 sender = words[1]
                 receiver = words[2]
-                message = words[3]
+                message = ' '.join(words[3:])
 
                 # if message is sent to a user that does not exist, raise an error
                 if receiver not in users: 
                     send_message(sock, command, data, "error Receiver does not exist")
                     return 
                 
-                msg_obj = {"id": len(messages["delivered"]) + len(messages["undelivered"]) + 1,
+                message = message.replace("\0", "NULL")
+
+                settings["counter"] += 1
+                msg_obj = {"id": settings["counter"],
                            "sender": sender, 
                            "receiver": receiver, 
-                           "message": message,
-                           "timestamp": datetime.datetime.now()}
-
+                           "message": message}
+                
                 # if message is sent to a logged in user, mark it as delivered
-                if users[receiver["logged_in"]]: 
+                if users[receiver]["logged_in"]: 
                     messages["delivered"].append(msg_obj)
                 # if message is sent to a user that is logged out, mark it as undelivered
                 else: 
                     messages["undelivered"].append(msg_obj)
 
-                send_message(sock, command, data, "message_sent".encode())
-                return 
+                num_messages = 0
+                for msg_obj in messages["undelivered"]:
+                    if msg_obj["receiver"] == sender:
+                        num_messages += 1
+
+                send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
+                database_wrapper.save_database(users, messages, settings)
             
-            elif words[0] == "view_msg": 
+            elif words[0] == "get_undelivered": 
                 # user decides on the number of messages to view
                 receiver = words[1] # i.e. logged in user
-                num_msg_view = words[2]
+                num_msg_view = int(words[2])
+
+                delivered_msgs = messages["delivered"]
+                undelivered_msgs = messages["undelivered"]
                 
-                to_view = []
                 to_deliver = ""
-                for msg_obj in messages["undelivered"]: 
+                for ind, msg_obj in enumerate(undelivered_msgs): 
                     if num_msg_view == 0: 
-                        pass 
+                        break 
                         
                     if msg_obj["receiver"] == receiver: 
-                        to_deliver += (msg_obj["msg"] + " \0 ")
-                        messages["delivered"].append(msg_obj)
-                        messages["undelivered"].delete(msg_obj)
-                        to_view.append(msg_obj)
+                        to_deliver += f'{msg_obj["id"]} {msg_obj["sender"]} {msg_obj["message"]}\0'
+                        delivered_msgs.append(msg_obj)
+                        del undelivered_msgs[ind]
 
                         num_msg_view -= 1
                 
-                send_message(sock, command, data, to_deliver.join("\0").encode())
-                return
+                num_messages = 0
+                for msg_obj in messages["undelivered"]:
+                    if msg_obj["receiver"] == receiver:
+                        num_messages += 1
+
+                send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
+                database_wrapper.save_database(users, messages, settings)
+            
+            elif words[0] == "get_delivered":
+                # user decides on the number of messages to view
+                receiver = words[1] # i.e. logged in user
+                num_msg_view = int(words[2])
+
+                delivered_msgs = messages["delivered"]
+                undelivered_msgs = messages["undelivered"]
+                
+                to_deliver = []
+                for ind, msg_obj in enumerate(delivered_msgs): 
+                    if num_msg_view == 0: 
+                        break 
+                    
+                    print(msg_obj)
+                    print(receiver)
+                    print(num_msg_view)
+                    if msg_obj["receiver"] == receiver: 
+                        to_deliver.append(f'{msg_obj["id"]}_{msg_obj["sender"]}_{msg_obj["message"]}')
+
+                        num_msg_view -= 1
+                
+                send_message(sock, command, data, ("messages " + '\0'.join(to_deliver)).encode("utf-8"))
             
             elif words[0] == "refresh_home":
                 # Count up undelivered messages
@@ -216,12 +252,31 @@ def service_connection(key, mask):
                         num_messages += 1
 
                 send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
+            
+            elif words[0] == "delete_msg":
+                current_user = words[1]
+                msgids_to_delete = set(words[2].split(","))
+                delivered_msgs = messages["delivered"]
+
+                # only messages that are delivered can be deleted
+                for ind, msg_obj in enumerate(delivered_msgs):
+                    if str(msg_obj["id"]) in msgids_to_delete and msg_obj["receiver"] == current_user:
+                        del delivered_msgs[ind]
+                
+                num_messages = 0
+                for msg_obj in messages["undelivered"]:
+                    if msg_obj["receiver"] == current_user:
+                        num_messages += 1
+
+                send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
+                database_wrapper.save_database(users, messages, settings)
+
             else:
                 print(f"No valid command: {command}")
                 data.outb = data.outb[len(command):]
 
 if __name__ == "__main__":
-    users, messages = database_wrapper.load_database()
+    users, messages, settings = database_wrapper.load_database()
 
     lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     lsock.bind((HOST, PORT))
