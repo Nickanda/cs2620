@@ -186,7 +186,7 @@ class TestMainServiceConnection(unittest.TestCase):
     def test_send_msg_invalid_receiver(self):
         main.users = {"sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 5555}}
         sock, _ = self.run_service("send_msg sender unknown Hello")
-        self.assertTrue(any("error Receiver does not exist" in sent for sent in sock.sent))
+        self.assertTrue(any(b"error Receiver does not exist" in sent for sent in sock.sent))
 
     def test_send_msg_delivered(self):
         main.users = {

@@ -104,20 +104,18 @@ def service_connection(key, mask):
                 username = words[1]
                 password = " ".join(words[2:]).strip()
 
-                
                 if username not in users:
                     send_message(sock, command, data, "error Username does not exist")
-                    return
-                
-
-                if password != users[username]["password"]:
-                    send_message(sock, command, data, "error Incorrect password")
                     return
                 
                 if users[username]["logged_in"]:
                     send_message(sock, command, data, "error User already logged in")
                     return
-
+                
+                if password != users[username]["password"]:
+                    send_message(sock, command, data, "error Incorrect password")
+                    return
+                
                 num_messages = 0
                 for msg_obj in messages["undelivered"]:
                     if msg_obj["receiver"] == username:
@@ -210,6 +208,10 @@ def service_connection(key, mask):
                 to_deliver = []
                 remove_indices = []  # List to store indices to delete later
 
+                if len(undelivered_msgs) == 0 and num_msg_view > 0: 
+                    send_message(sock, command, data, "error No undelivered messages")
+                    return
+                
                 for ind, msg_obj in enumerate(undelivered_msgs): 
                     if num_msg_view == 0: 
                         break 
@@ -234,6 +236,10 @@ def service_connection(key, mask):
 
                 delivered_msgs = messages["delivered"]
                 undelivered_msgs = messages["undelivered"]
+                
+                if len(delivered_msgs) == 0 and num_msg_view > 0: 
+                    send_message(sock, command, data, "error No delivered messages")
+                    return
                 
                 to_deliver = []
                 for ind, msg_obj in enumerate(delivered_msgs): 
