@@ -72,7 +72,7 @@ def service_connection(key, mask):
             words = data.outb.decode("utf-8").split(" ")
             command = " ".join(words)
             if words[0] == "create":
-                username = words[1]
+                username = words[1].strip()
                 password = " ".join(words[2:])
 
                 if username.isalnum() == False:
@@ -98,9 +98,8 @@ def service_connection(key, mask):
 
             elif words[0] == "login":
                 username = words[1]
-                password = " ".join(words[2:])
+                password = " ".join(words[2:]).strip()
 
-                
                 
                 if username not in users:
                     send_message(sock, command, data, "error Username does not exist".encode("utf-8"))

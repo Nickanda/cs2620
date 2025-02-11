@@ -250,7 +250,6 @@ class TestMainServiceConnection(unittest.TestCase):
             self.assertNotIn(msg["id"], [20, 21])
         self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
 
-    #!!!!!!!
     def test_delete_nonexistent_account(self):
         sock, _ = self.run_service("delete_acct nonexistent")
         self.assertTrue(any(b"error Account does not exist" in sent for sent in sock.sent)) 
@@ -264,6 +263,72 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertFalse(any(msg["receiver"] == "victim" for msg in main.messages["undelivered"]))
         self.assertFalse(any(msg["sender"] == "victim" for msg in main.messages["delivered"]))
         self.assertTrue(any(b"logout" in sent for sent in sock.sent))
+
+    def test_create_username_too_long(self):
+        long_username = "u" * 64  # 64-char username
+        command = f"create {long_username} somepasswordhash"
+        sock, _ = self.run_service(command)
+        self.assertIn(long_username, main.users, "The user should still be created (no explicit code blocking).")
+        self.assertTrue(any(b"login" in sent for sent in sock.sent))
+
+    def test_create_password_too_long(self):
+        long_password = "p" * 128
+        command = f"create shortusername {long_password}"
+        sock, _ = self.run_service(command)
+        self.assertIn("shortusername", main.users)
+        self.assertTrue(any(b"login shortusername 0" in sent for sent in sock.sent))
+
+    def test_send_msg_empty_message_body(self):
+        main.users = {
+            "sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 9999},
+            "receiver": {"password": "x", "logged_in": True, "addr": 10000}
+        }
+        sock, _ = self.run_service("send_msg sender receiver ")
+        self.assertEqual(len(main.messages["delivered"]), 1, "Even empty messages are delivered under current logic.")
+        self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
+
+    def test_login_with_long_password(self):
+        hashed = self.hasher.hash("secret")
+        main.users["longpass"] = {"password": hashed, "logged_in": False, "addr": 0}
+        long_wrong_password = "x" * 200
+        sock, _ = self.run_service(f"login longpass {long_wrong_password}")
+        self.assertTrue(any(b"error Incorrect password" in sent for sent in sock.sent))
+
+    def test_get_undelivered_zero_requested(self):
+        main.messages["undelivered"] = [
+            {"id": 1, "sender": "a", "receiver": "user", "message": "Hello"}
+        ]
+        sock, _ = self.run_service("get_undelivered user 0")
+        self.assertTrue(any(b"messages " in sent for sent in sock.sent),
+                        "Should respond with 'messages' command, but no messages returned.")
+        self.assertEqual(len(main.messages["undelivered"]), 1)
+    
+    ############################################################################
+    ############################################################################
+    #! FLAGGING THIS ONE SINCE THIS PASSES HOW ARE WE JOINING THESE THINGS
+    def test_get_delivered_more_than_exist(self):
+        main.messages["delivered"] = [
+            {"id": 10, "sender": "alice", "receiver": "testuser", "message": "Msg10"},
+            {"id": 11, "sender": "bob", "receiver": "testuser", "message": "Msg11"},
+        ]
+        sock, _ = self.run_service("get_delivered testuser 5")
+        self.assertTrue(any(b"messages 10_alice_Msg10\x0011_bob_Msg11" in sent for sent in sock.sent),
+                        "Should deliver both messages since we asked for 5.")
+    #! FLAGGING THIS ONE SINCE THIS PASSES HOW ARE WE JOINING THESE THINGS
+    ############################################################################
+    ############################################################################
+
+    def test_search_no_match(self):
+        main.users = {
+            "alice": {"password": "x", "logged_in": False, "addr": 0},
+            "bob": {"password": "x", "logged_in": False, "addr": 0},
+        }
+        sock, _ = self.run_service("search char*")
+        self.assertTrue(any(b"user_list" in sent for sent in sock.sent))
+        for sent in sock.sent:
+            if b"user_list" in sent:
+                self.assertEqual(sent, b"user_list ",
+                                 "No users matched, so it should be 'user_list ' with nothing else.")
 
 ###############################################################################
 # Tests for database_wrapper.py
@@ -327,6 +392,15 @@ class TestDatabaseWrapper(unittest.TestCase):
         users, messages, settings = database_wrapper.load_database()
         self.assertEqual(settings, {"counter": 0})
 
+    def test_save_database_overwrites_files(self):
+        # Write old data
+        database_wrapper.save_database({"olduser": {}}, {"undelivered": [], "delivered": []}, {"counter": 99})
+        # Overwrite with new data
+        database_wrapper.save_database({"newuser": {"password": "p"}}, {"undelivered": [], "delivered": []}, {"counter": 0})
+        loaded_users, loaded_messages, loaded_settings = database_wrapper.load_database()
+        self.assertIn("newuser", loaded_users)
+        self.assertNotIn("olduser", loaded_users, "Old data should have been overwritten.")
+
 ###############################################################################
 # Tests for the screens (UI modules)
 ###############################################################################
@@ -340,8 +414,10 @@ class TestScreensSignup(unittest.TestCase):
         # Create a hidden Tk instance for StringVars.
         self.tk_root = tk.Tk()
         self.tk_root.withdraw()
+
     def tearDown(self):
         self.tk_root.destroy()
+
     def test_create_user_valid(self):
         username_var = tk.StringVar(self.tk_root, value="testuser")
         password_var = tk.StringVar(self.tk_root, value="secret")
@@ -351,6 +427,7 @@ class TestScreensSignup(unittest.TestCase):
             self.assertTrue(any(msg.startswith(b"create testuser ") for msg in self.dummy_socket.sent))
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
+
     def test_create_user_invalid_username(self):
         username_var = tk.StringVar(self.tk_root, value="test*user")
         password_var = tk.StringVar(self.tk_root, value="secret")
@@ -358,14 +435,24 @@ class TestScreensSignup(unittest.TestCase):
             signup_screen.create_user(self.dummy_socket, self.root, username_var, password_var)
             mock_showerror.assert_called_once_with("Error", "Username must be alphanumeric")
 
+    def test_create_user_blank_password(self):
+        username_var = tk.StringVar(self.tk_root, value="validuser")
+        password_var = tk.StringVar(self.tk_root, value="")
+        with patch('screens.signup.messagebox.showerror') as mock_showerror:
+            signup_screen.create_user(self.dummy_socket, self.root, username_var, password_var)
+            mock_showerror.assert_called_once_with("Error", "All fields are required")
+            self.assertFalse(self.root.destroy_called)
+
 class TestScreensLogin(unittest.TestCase):
     def setUp(self):
         self.dummy_socket = DummySocketForScreens()
         self.root = DummyTk()
         self.tk_root = tk.Tk()
         self.tk_root.withdraw()
+
     def tearDown(self):
         self.tk_root.destroy()
+
     def test_login_valid(self):
         username_var = tk.StringVar(self.tk_root, value="testuser")
         password_var = tk.StringVar(self.tk_root, value="secret")
@@ -374,12 +461,14 @@ class TestScreensLogin(unittest.TestCase):
             self.assertTrue(any(msg.startswith(b"login testuser secret") for msg in self.dummy_socket.sent))
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
+
     def test_login_invalid_username(self):
         username_var = tk.StringVar(self.tk_root, value="test*user")
         password_var = tk.StringVar(self.tk_root, value="secret")
         with patch('screens.login.messagebox.showerror') as mock_showerror:
             login_screen.login(self.dummy_socket, self.root, username_var, password_var)
             mock_showerror.assert_called_once_with("Error", "Username must be alphanumeric")
+
     def test_login_blank_username(self):
         username_var = tk.StringVar(self.tk_root, value="")
         password_var = tk.StringVar(self.tk_root, value="password")
@@ -387,14 +476,24 @@ class TestScreensLogin(unittest.TestCase):
             login_screen.login(self.dummy_socket, self.root, username_var, password_var)
             mock_showerror.assert_called_once_with("Error", "All fields are required")
 
+    def test_login_blank_password(self):
+        username_var = tk.StringVar(self.tk_root, value="validuser")
+        password_var = tk.StringVar(self.tk_root, value="")
+        with patch('screens.login.messagebox.showerror') as mock_showerror:
+            login_screen.login(self.dummy_socket, self.root, username_var, password_var)
+            mock_showerror.assert_called_once_with("Error", "All fields are required")
+            self.assertFalse(self.root.destroy_called)
+
 class TestScreensSendMessage(unittest.TestCase):
     def setUp(self):
         self.dummy_socket = DummySocketForScreens()
         self.root = DummyTk()
         self.tk_root = tk.Tk()
         self.tk_root.withdraw()
+
     def tearDown(self):
         self.tk_root.destroy()
+
     def test_send_message_valid(self):
         recipient_var = tk.StringVar(self.tk_root, value="receiver")
         text_widget = tk.Text(self.tk_root)
@@ -404,6 +503,7 @@ class TestScreensSendMessage(unittest.TestCase):
             self.assertTrue(any(msg.startswith(b"send_msg sender receiver Hello there") for msg in self.dummy_socket.sent))
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
+
     def test_send_message_invalid_recipient(self):
         recipient_var = tk.StringVar(self.tk_root, value="receiver!")
         text_widget = tk.Text(self.tk_root)
@@ -411,6 +511,7 @@ class TestScreensSendMessage(unittest.TestCase):
         with patch('screens.send_message.messagebox.showerror') as mock_showerror:
             send_message_screen.send_message(self.dummy_socket, self.root, recipient_var, text_widget, "sender")
             mock_showerror.assert_called_once_with("Error", "Username must be alphanumeric")
+
     def test_send_message_blank_recipient(self):
         recipient_var = tk.StringVar(self.tk_root, value="")
         text_widget = tk.Text(self.tk_root)
@@ -419,14 +520,25 @@ class TestScreensSendMessage(unittest.TestCase):
             send_message_screen.send_message(self.dummy_socket, self.root, recipient_var, text_widget, "sender")
             mock_showerror.assert_called_once_with("Error", "All fields are required")
 
+    def test_send_message_blank_content(self):
+        recipient_var = tk.StringVar(self.tk_root, value="validrecipient")
+        text_widget = tk.Text(self.tk_root)
+        # No text inserted => blank
+        with patch('screens.send_message.messagebox.showerror') as mock_showerror:
+            send_message_screen.send_message(self.dummy_socket, self.root, recipient_var, text_widget, "sender")
+            mock_showerror.assert_called_once_with("Error", "All fields are required")
+            self.assertFalse(self.root.destroy_called)
+
 class TestScreensDeleteMessage(unittest.TestCase):
     def setUp(self):
         self.dummy_socket = DummySocketForScreens()
         self.root = DummyTk()
         self.tk_root = tk.Tk()
         self.tk_root.withdraw()
+
     def tearDown(self):
         self.tk_root.destroy()
+
     def test_delete_message_valid(self):
         delete_ids_var = tk.StringVar(self.tk_root, value="1,2,3")
         with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
@@ -434,16 +546,25 @@ class TestScreensDeleteMessage(unittest.TestCase):
             self.assertTrue(any(msg.startswith(b"delete_msg testuser 1,2,3") for msg in self.dummy_socket.sent))
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
+
     def test_delete_message_invalid_ids(self):
         delete_ids_var = tk.StringVar(self.tk_root, value="1, 2,3")  # contains a space
         with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
             delete_messages.delete_message(self.dummy_socket, self.root, delete_ids_var, "testuser")
             mock_showerror.assert_called_once_with("Error", "Delete IDs must be alphanumeric comma-separated list")
+
     def test_delete_message_invalid_input(self):
         delete_ids_var = tk.StringVar(self.tk_root, value="bad input!")
         with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
             delete_messages.delete_message(self.dummy_socket, self.root, delete_ids_var, "user")
             mock_showerror.assert_called_once_with("Error", "Delete IDs must be alphanumeric comma-separated list")
+
+    def test_delete_message_blank_input(self):
+        delete_ids_var = tk.StringVar(self.tk_root, value="")
+        with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
+            delete_messages.delete_message(self.dummy_socket, self.root, delete_ids_var, "testuser")
+            mock_showerror.assert_called_once_with("Error", "All fields are required")
+            self.assertFalse(self.root.destroy_called)
 
 class TestScreensUserList(unittest.TestCase):
     def setUp(self):
@@ -451,8 +572,10 @@ class TestScreensUserList(unittest.TestCase):
         self.root = DummyTk()
         self.tk_root = tk.Tk()
         self.tk_root.withdraw()
+
     def tearDown(self):
         self.tk_root.destroy()
+
     def test_search_valid(self):
         search_var = tk.StringVar(self.tk_root, value="alice*")
         with patch('screens.user_list.messagebox.showerror') as mock_showerror:
@@ -460,11 +583,27 @@ class TestScreensUserList(unittest.TestCase):
             self.assertTrue(any(msg.startswith(b"search alice*") for msg in self.dummy_socket.sent))
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
+
     def test_search_invalid(self):
         search_var = tk.StringVar(self.tk_root, value="alice#")
         with patch('screens.user_list.messagebox.showerror') as mock_showerror:
             user_list_screen.search(self.dummy_socket, self.root, search_var)
             mock_showerror.assert_called_once_with("Error", "Search characters must be alphanumeric or *")
+
+    def test_search_blank(self):
+        search_var = tk.StringVar(self.tk_root, value="")
+        with patch('screens.user_list.messagebox.showerror') as mock_showerror:
+            user_list_screen.search(self.dummy_socket, self.root, search_var)
+            mock_showerror.assert_called_once_with("Error", "All fields are required")
+
+    def test_search_just_star(self):
+        """Test searching with '*' only should return all users if any exist."""
+        search_var = tk.StringVar(self.tk_root, value="*")
+        with patch('screens.user_list.messagebox.showerror') as mock_showerror:
+            user_list_screen.search(self.dummy_socket, self.root, search_var)
+            self.assertTrue(any(msg.startswith(b"search *") for msg in self.dummy_socket.sent))
+            self.assertTrue(self.root.destroy_called)
+            mock_showerror.assert_not_called()
 
 class TestScreensMessages(unittest.TestCase):
     def setUp(self):
@@ -472,8 +611,10 @@ class TestScreensMessages(unittest.TestCase):
         self.root = DummyTk()
         self.tk_root = tk.Tk()
         self.tk_root.withdraw()
+
     def tearDown(self):
         self.tk_root.destroy()
+
     def test_get_undelivered_messages_valid(self):
         num_messages_var = tk.IntVar(self.tk_root, value=2)
         with patch('screens.messages.messagebox.showerror') as mock_showerror:
@@ -481,11 +622,13 @@ class TestScreensMessages(unittest.TestCase):
             self.assertTrue(any(msg.startswith(b"get_undelivered testuser 2") for msg in self.dummy_socket.sent))
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
+
     def test_get_undelivered_messages_zero(self):
         num_messages_var = tk.IntVar(self.tk_root, value=0)
         with patch('screens.messages.messagebox.showerror') as mock_showerror:
             messages_screen.get_undelivered_messages(self.dummy_socket, self.root, num_messages_var, "testuser")
             mock_showerror.assert_called_once_with("Error", "Number of messages must be greater than 0")
+
     def test_get_delivered_messages_valid(self):
         num_messages_var = tk.IntVar(self.tk_root, value=3)
         with patch('screens.messages.messagebox.showerror') as mock_showerror:
@@ -494,29 +637,51 @@ class TestScreensMessages(unittest.TestCase):
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
 
+    def test_get_delivered_negative_number(self):
+        """Try passing a negative number of messages to get_delivered and check for error handling."""
+        num_messages_var = tk.IntVar(self.tk_root, value=-1)
+        with patch('screens.messages.messagebox.showerror') as mock_showerror:
+            messages_screen.get_delivered_messages(self.dummy_socket, self.root, num_messages_var, "testuser")
+            mock_showerror.assert_called_once_with("Error", "Number of messages must be greater than 0")
+            self.assertFalse(self.root.destroy_called)
+
+    def test_get_undelivered_negative_number(self):
+        """Try passing a negative number of messages to get_undelivered and check for error handling."""
+        num_messages_var = tk.IntVar(self.tk_root, value=-5)
+        with patch('screens.messages.messagebox.showerror') as mock_showerror:
+            messages_screen.get_undelivered_messages(self.dummy_socket, self.root, num_messages_var, "testuser")
+            mock_showerror.assert_called_once_with("Error", "Number of messages must be greater than 0")
+            self.assertFalse(self.root.destroy_called)
+
 class TestScreensHome(unittest.TestCase):
     def setUp(self):
         self.dummy_socket = DummySocketForScreens()
         self.root = DummyTk()
+
     def test_open_read_messages(self):
         with patch('screens.home.screens.messages.launch_window') as mock_launch:
             home.open_read_messages(self.dummy_socket, self.root, "testuser")
             mock_launch.assert_called_once_with(self.dummy_socket, [], "testuser")
+
     def test_open_send_message(self):
         with patch('screens.home.screens.send_message.launch_window') as mock_launch:
             home.open_send_message(self.dummy_socket, self.root, "testuser")
             mock_launch.assert_called_once_with(self.dummy_socket, "testuser")
+
     def test_open_delete_messages(self):
         with patch('screens.home.screens.delete_messages.launch_window') as mock_launch:
             home.open_delete_messages(self.dummy_socket, self.root, "testuser")
             mock_launch.assert_called_once_with(self.dummy_socket, "testuser")
+
     def test_open_user_list(self):
         with patch('screens.home.screens.user_list.launch_window') as mock_launch:
             home.open_user_list(self.dummy_socket, self.root, "testuser")
             mock_launch.assert_called_once_with(self.dummy_socket, [], "testuser")
+
     def test_logout(self):
         home.logout(self.dummy_socket, self.root, "testuser")
         self.assertTrue(any(msg.startswith(b"logout testuser") for msg in self.dummy_socket.sent))
+
     def test_delete_account(self):
         home.delete_account(self.dummy_socket, self.root, "testuser")
         self.assertTrue(any(msg.startswith(b"delete_acct testuser") for msg in self.dummy_socket.sent))
@@ -525,13 +690,193 @@ class TestScreensDeleteMessageLaunchHome(unittest.TestCase):
     def setUp(self):
         self.dummy_socket = DummySocketForScreens()
         self.root = DummyTk()
+
     def test_launch_home(self):
         delete_messages.launch_home(self.dummy_socket, self.root, "testuser")
         self.assertTrue(any(msg.startswith(b"refresh_home testuser") for msg in self.dummy_socket.sent))
 
-###############################################################################
-# Main block: run tests
-###############################################################################
+
+# ----------------------------- ADDITIONAL TESTS HERE -----------------------------
+# Below are newly added tests that further expand coverage for edge cases,
+# error handling, and normal functionality. The existing tests above remain unchanged.
+
+class TestMainServiceConnectionAdditional(unittest.TestCase):
+    def setUp(self):
+        # Reset globals used by main.py
+        main.users = {}
+        main.messages = {"undelivered": [], "delivered": []}
+        main.settings = {"counter": 0}
+        # Patch database saving
+        self.save_patch = patch('database_wrapper.save_database', lambda users, messages, settings: None)
+        self.save_patch.start()
+        self.hasher = PasswordHasher()
+
+    def tearDown(self):
+        self.save_patch.stop()
+
+    def run_service(self, command_str, mask=selectors.EVENT_WRITE):
+        """Helper for sending commands to the main.service_connection."""
+        dummy_sock = DummySocket()
+        data = types.SimpleNamespace(addr=("127.0.0.1", 10000), inb=b"", outb=command_str.encode("utf-8"))
+        key = types.SimpleNamespace(fileobj=dummy_sock, data=data)
+        main.service_connection(key, mask)
+        return dummy_sock, data
+
+    def test_create_numeric_only_username(self):
+        sock, _ = self.run_service("create 12345 passwordhash")
+        self.assertIn("12345", main.users)
+        self.assertTrue(main.users["12345"]["logged_in"])
+        self.assertTrue(any(b"login 12345 0" in s for s in sock.sent))
+
+    def test_login_with_trailing_spaces(self):
+        # Create user first
+        hashed = self.hasher.hash("secret123")
+        main.users["username"] = {"password": hashed, "logged_in": False, "addr": 0}
+        sock, _ = self.run_service("login username secret123   ")
+        self.assertTrue(any(b"login username 0" in s for s in sock.sent), "Login should succeed despite trailing spaces.")
+
+    def test_send_message_sender_not_logged_in(self):
+        # We have a user in the system, but they're not logged in.
+        main.users["sender"] = {"password": self.hasher.hash("pass"), "logged_in": False, "addr": 0}
+        main.users["receiver"] = {"password": "x", "logged_in": True, "addr": 1234}
+        sock, _ = self.run_service("send_msg sender receiver HelloWhileLoggedOut")
+        # Code doesn't currently explicitly block a logged-out sender from sending. 
+        # Let's see what happens: it processes it anyway.
+        # There's no direct check for "logged_in" in `send_msg` logic. 
+        # So it should go through as "undelivered" or "delivered" (since receiver is logged in).
+        # Actually, since receiver is logged in, it's added to delivered. 
+        self.assertEqual(len(main.messages["delivered"]), 1, "Message was delivered even though the sender wasn't logged in.")
+        # This tests a possible system gap; we confirm the code's actual behavior.
+        self.assertTrue(any(b"refresh_home" in s for s in sock.sent))
+
+    def test_delete_message_not_owned_by_user(self):
+        # Create delivered messages for multiple users
+        main.messages["delivered"] = [
+            {"id": 100, "sender": "alice", "receiver": "bob", "message": "Hello Bob"},
+            {"id": 101, "sender": "charlie", "receiver": "testuser", "message": "Hello Testuser"}
+        ]
+        # Attempt to delete 100,101 as "testuser"
+        sock, _ = self.run_service("delete_msg testuser 100,101")
+        # user "testuser" can only delete messages where testuser is the receiver, which includes msg id=101.
+        # But msg id=100 is bob's. That should remain. The code only checks `(msg["receiver"] == current_user)`.
+        # So 101 should be deleted, 100 should remain.
+        self.assertFalse(any(m["id"] == 101 for m in main.messages["delivered"]), "Message 101 should be deleted.")
+        self.assertTrue(any(m["id"] == 100 for m in main.messages["delivered"]), "Message 100 should remain.")
+        self.assertTrue(any(b"refresh_home" in s for s in sock.sent))
+
+    def test_send_message_with_special_characters_in_body(self):
+        main.users = {
+            "sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 20000},
+            "receiver": {"password": "x", "logged_in": True, "addr": 30000}
+        }
+        sock, _ = self.run_service("send_msg sender receiver Hello!@#$%^&*()")
+        self.assertEqual(len(main.messages["delivered"]), 1)
+        self.assertIn("Hello!@#$%^&*()", main.messages["delivered"][0]["message"])
+        self.assertTrue(any(b"refresh_home" in s for s in sock.sent))
+
+    def test_search_extreme_wildcard(self):
+        main.users = {
+            "alice": {"password": "x", "logged_in": False, "addr": 0},
+            "alice123": {"password": "x", "logged_in": False, "addr": 0},
+            "xyz": {"password": "x", "logged_in": False, "addr": 0}
+        }
+        # '*' wildcard should return all, no matter how many
+        sock, _ = self.run_service("search ****************************************************************")
+        # We expect the server's fnmatch logic to consider that as a big wildcard too.
+        # Should match everything.
+        self.assertTrue(any(b"user_list alice alice123 xyz" in s or b"user_list xyz alice alice123" in s for s in sock.sent))
+
+    def test_get_undelivered_nonexistent_user(self):
+        # If a user not in `main.users` tries to get undelivered
+        sock, _ = self.run_service("get_undelivered ghost 2")
+        # The code does not check if the user actually exists, so it won't raise an error
+        # but also won't deliver anything. It simply filters on the "receiver" field.
+        # Make sure there's no crash or weird error:
+        self.assertTrue(any(b"messages " in s for s in sock.sent), "Should respond with an empty 'messages' block.")
+
+    def test_get_delivered_for_nonexistent_user(self):
+        # If "ghost" doesn't exist in main.users, but user calls get_delivered ghost 2
+        # The system doesn't specifically verify the user. It filters messages for the receiver=ghost.
+        # So if none exist, it returns an empty message set.
+        sock, _ = self.run_service("get_delivered ghost 2")
+        self.assertTrue(any(b"messages " in s for s in sock.sent), "Should respond with an empty 'messages' block.")
+
+    def test_create_user_with_numeric_password(self):
+        # Nothing in code forbids numeric passwords
+        sock, _ = self.run_service("create userwithnumericpass 1234567890")
+        self.assertIn("userwithnumericpass", main.users)
+        self.assertTrue(any(b"login userwithnumericpass 0" in s for s in sock.sent))
+
+    def test_delete_acct_case_sensitivity(self):
+        # Suppose we treat usernames case-sensitively (the code does not do any .lower()).
+        main.users["CaseUser"] = {"password": self.hasher.hash("p"), "logged_in": True, "addr": 4444}
+        sock, _ = self.run_service("delete_acct caseuser")
+        # "caseuser" != "CaseUser", so we expect "error Account does not exist"
+        self.assertTrue(any(b"error Account does not exist" in s for s in sock.sent),
+                        "No case-insensitive match, so it should yield error.")
+
+
+class TestScreensAdditional(unittest.TestCase):
+    def setUp(self):
+        self.dummy_socket = DummySocketForScreens()
+        self.root = DummyTk()
+        # For StringVar usage
+        self.tk_root = tk.Tk()
+        self.tk_root.withdraw()
+
+    def tearDown(self):
+        self.tk_root.destroy()
+
+    def test_signup_numeric_username(self):
+        username_var = tk.StringVar(self.tk_root, value="1234")
+        password_var = tk.StringVar(self.tk_root, value="somepass")
+        with patch('screens.signup.messagebox.showerror') as mock_showerror:
+            signup_screen.create_user(self.dummy_socket, self.root, username_var, password_var)
+            self.assertTrue(any(msg.startswith(b"create 1234 ") for msg in self.dummy_socket.sent))
+            self.assertTrue(self.root.destroy_called)
+            mock_showerror.assert_not_called()
+
+    def test_login_spaces_in_password(self):
+        username_var = tk.StringVar(self.tk_root, value="userwithspaces")
+        password_var = tk.StringVar(self.tk_root, value="secret with spaces")
+        with patch('screens.login.messagebox.showerror') as mock_showerror:
+            login_screen.login(self.dummy_socket, self.root, username_var, password_var)
+            # Expect "login userwithspaces secret with spaces"
+            self.assertTrue(any(msg.startswith(b"login userwithspaces secret with spaces") 
+                                for msg in self.dummy_socket.sent))
+            self.assertTrue(self.root.destroy_called)
+            mock_showerror.assert_not_called()
+
+    def test_send_message_special_characters(self):
+        recipient_var = tk.StringVar(self.tk_root, value="receiver")
+        text_widget = tk.Text(self.tk_root)
+        text_widget.insert("1.0", "Special chars: ~!@#$%^&*()_+{}|:\"<>?")
+        with patch('screens.send_message.messagebox.showerror') as mock_showerror:
+            send_message_screen.send_message(self.dummy_socket, self.root, recipient_var, text_widget, "sender123")
+            # Check if the message got sent
+            self.assertTrue(any(
+                b"send_msg sender123 receiver Special chars: ~!@#$%^&*()_+{}|:\"<>?" in msg
+                for msg in self.dummy_socket.sent
+            ))
+            self.assertTrue(self.root.destroy_called)
+            mock_showerror.assert_not_called()
+
+    def test_delete_messages_non_alphanumeric_comma_list(self):
+        delete_ids_var = tk.StringVar(self.tk_root, value="msg1,msg2!")
+        with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
+            delete_messages.delete_message(self.dummy_socket, self.root, delete_ids_var, "testuser")
+            mock_showerror.assert_called_once_with("Error", "Delete IDs must be alphanumeric comma-separated list")
+
+    def test_user_list_search_asterisk_in_middle(self):
+        search_var = tk.StringVar(self.tk_root, value="ab*cd")
+        with patch('screens.user_list.messagebox.showerror') as mock_showerror:
+            user_list_screen.search(self.dummy_socket, self.root, search_var)
+            # We want to ensure it's accepted as an alphanumeric plus '*'
+            # "ab*cd" is valid based on code (it will do fnmatch on that).
+            self.assertTrue(any(msg.startswith(b"search ab*cd") for msg in self.dummy_socket.sent))
+            self.assertTrue(self.root.destroy_called)
+            mock_showerror.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
