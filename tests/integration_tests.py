@@ -4,9 +4,8 @@ import types
 import tempfile
 import unittest
 import tkinter as tk
-from tkinter import messagebox
-from unittest.mock import patch, MagicMock
-from argon2 import PasswordHasher
+from unittest.mock import patch
+import hashlib
 
 # Import the modules to test.
 import main
@@ -67,7 +66,6 @@ class TestMainServiceConnection(unittest.TestCase):
         # Patch database_wrapper.save_database to avoid file I/O during tests.
         self.save_patch = patch('database_wrapper.save_database', lambda users, messages, settings: None)
         self.save_patch.start()
-        self.hasher = PasswordHasher()
 
     def tearDown(self):
         self.save_patch.stop()
@@ -87,7 +85,7 @@ class TestMainServiceConnection(unittest.TestCase):
     
     def test_create_existing_username(self):
         # Create a user beforehand.
-        main.users["testuser"] = {"password": self.hasher.hash("password"), "logged_in": True, "addr": 1111}
+        main.users["testuser"] = {"password": hashlib.sha256("password".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 1111}
         sock, _ = self.run_service("create testuser somehash")
         self.assertTrue(any(b"error Username already exists" in sent for sent in sock.sent))
 
@@ -104,7 +102,7 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertTrue(any(b"error Username does not exist" in sent for sent in sock.sent))
 
     def test_login_empty_password(self):
-        main.users["validuser"] = {"password": self.hasher.hash("secret"), "logged_in": False, "addr": 0}
+        main.users["validuser"] = {"password": hashlib.sha256("secret".encode("utf-8")).hexdigest(), "logged_in": False, "addr": 0}
         sock, _ = self.run_service("login validuser ")
         self.assertTrue(any(b"error Incorrect password" in sent for sent in sock.sent))
 
@@ -120,19 +118,19 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertTrue(any(b"error Username does not exist" in sent for sent in sock.sent))
 
     def test_login_incorrect_password(self):
-        hashed = self.hasher.hash("correct")
+        hashed = hashlib.sha256("correct".encode("utf-8")).hexdigest()
         main.users["testuser"] = {"password": hashed, "logged_in": False, "addr": 0}
         sock, _ = self.run_service("login testuser wrong")
         self.assertTrue(any(b"error Incorrect password" in sent for sent in sock.sent))
 
     def test_login_already_logged_in(self):
-        hashed = self.hasher.hash("secret")
+        hashed = hashlib.sha256("correct".encode("utf-8")).hexdigest()
         main.users["testuser"] = {"password": hashed, "logged_in": True, "addr": 2222}
         sock, _ = self.run_service("login testuser secret")
         self.assertTrue(any(b"error User already logged in" in sent for sent in sock.sent))
 
     def test_login_success(self):
-        hashed = self.hasher.hash("secret")
+        hashed = hashlib.sha256("correct".encode("utf-8")).hexdigest()
         main.users["testuser"] = {"password": hashed, "logged_in": False, "addr": 0}
         # Add an undelivered message for testuser.
         main.messages["undelivered"].append({"id": 1, "sender": "other", "receiver": "testuser", "message": "Hello"})
@@ -145,7 +143,7 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertTrue(any(b"error Username does not exist" in sent for sent in sock.sent))
 
     def test_logout_success(self):
-        main.users["testuser"] = {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 3333}
+        main.users["testuser"] = {"password": hashlib.sha256("correct".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 3333}
         sock, _ = self.run_service("logout testuser")
         self.assertTrue(any(b"logout" in sent for sent in sock.sent))
         self.assertFalse(main.users["testuser"]["logged_in"])
@@ -163,7 +161,7 @@ class TestMainServiceConnection(unittest.TestCase):
 
     def test_delete_acct(self):
         main.users = {
-            "testuser": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 4444},
+            "testuser": {"password": hashlib.sha256("correct".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 4444},
             "other": {"password": "x", "logged_in": False, "addr": 0}
         }
         # Add some messages that involve testuser.
@@ -184,13 +182,13 @@ class TestMainServiceConnection(unittest.TestCase):
             self.assertNotEqual(msg["receiver"], "testuser")
 
     def test_send_msg_invalid_receiver(self):
-        main.users = {"sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 5555}}
+        main.users = {"sender": {"password": hashlib.sha256("correct".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 5555}}
         sock, _ = self.run_service("send_msg sender unknown Hello")
         self.assertTrue(any(b"error Receiver does not exist" in sent for sent in sock.sent))
 
     def test_send_msg_delivered(self):
         main.users = {
-            "sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 6666},
+            "sender": {"password": hashlib.sha256("correct".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 6666},
             "receiver": {"password": "x", "logged_in": True, "addr": 7777}
         }
         initial_delivered = len(main.messages["delivered"])
@@ -200,7 +198,7 @@ class TestMainServiceConnection(unittest.TestCase):
 
     def test_send_msg_undelivered(self):
         main.users = {
-            "sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 8888},
+            "sender": {"password": hashlib.sha256("correct".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 8888},
             "receiver": {"password": "x", "logged_in": False, "addr": 0}
         }
         initial_undelivered = len(main.messages["undelivered"])
@@ -255,7 +253,7 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertTrue(any(b"error Account does not exist" in sent for sent in sock.sent)) 
 
     def test_delete_account_with_messages(self):
-        main.users["victim"] = {"password": self.hasher.hash("pass123"), "logged_in": False, "addr": 0}
+        main.users["victim"] = {"password": hashlib.sha256("pass123".encode("utf-8")).hexdigest(), "logged_in": False, "addr": 0}
         main.messages["undelivered"].append({"id": 1, "sender": "other", "receiver": "victim", "message": "Message1"})
         main.messages["delivered"].append({"id": 2, "sender": "victim", "receiver": "other", "message": "Message2"})
         sock, _ = self.run_service("delete_acct victim")
@@ -280,7 +278,7 @@ class TestMainServiceConnection(unittest.TestCase):
 
     def test_send_msg_empty_message_body(self):
         main.users = {
-            "sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 9999},
+            "sender": {"password": hashlib.sha256("correct".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 9999},
             "receiver": {"password": "x", "logged_in": True, "addr": 10000}
         }
         sock, _ = self.run_service("send_msg sender receiver ")
@@ -288,7 +286,7 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
 
     def test_login_with_long_password(self):
-        hashed = self.hasher.hash("secret")
+        hashed = hashlib.sha256("correct".encode("utf-8")).hexdigest()
         main.users["longpass"] = {"password": hashed, "logged_in": False, "addr": 0}
         long_wrong_password = "x" * 200
         sock, _ = self.run_service(f"login longpass {long_wrong_password}")
@@ -709,7 +707,6 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
         # Patch database saving
         self.save_patch = patch('database_wrapper.save_database', lambda users, messages, settings: None)
         self.save_patch.start()
-        self.hasher = PasswordHasher()
 
     def tearDown(self):
         self.save_patch.stop()
@@ -730,14 +727,14 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
 
     def test_login_with_trailing_spaces(self):
         # Create user first
-        hashed = self.hasher.hash("secret123")
+        hashed = hashlib.sha256("secret123".encode("utf-8")).hexdigest()
         main.users["username"] = {"password": hashed, "logged_in": False, "addr": 0}
         sock, _ = self.run_service("login username secret123   ")
         self.assertTrue(any(b"login username 0" in s for s in sock.sent), "Login should succeed despite trailing spaces.")
 
     def test_send_message_sender_not_logged_in(self):
         # We have a user in the system, but they're not logged in.
-        main.users["sender"] = {"password": self.hasher.hash("pass"), "logged_in": False, "addr": 0}
+        main.users["sender"] = {"password": hashlib.sha256("pass".encode("utf-8")).hexdigest(), "logged_in": False, "addr": 0}
         main.users["receiver"] = {"password": "x", "logged_in": True, "addr": 1234}
         sock, _ = self.run_service("send_msg sender receiver HelloWhileLoggedOut")
         # Code doesn't currently explicitly block a logged-out sender from sending. 
@@ -766,7 +763,7 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
 
     def test_send_message_with_special_characters_in_body(self):
         main.users = {
-            "sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 20000},
+            "sender": {"password": hashlib.sha256("correct".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 20000},
             "receiver": {"password": "x", "logged_in": True, "addr": 30000}
         }
         sock, _ = self.run_service("send_msg sender receiver Hello!@#$%^&*()")
@@ -809,7 +806,7 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
 
     def test_delete_acct_case_sensitivity(self):
         # Suppose we treat usernames case-sensitively (the code does not do any .lower()).
-        main.users["CaseUser"] = {"password": self.hasher.hash("p"), "logged_in": True, "addr": 4444}
+        main.users["CaseUser"] = {"password": hashlib.sha256("p".encode("utf-8")).hexdigest(), "logged_in": True, "addr": 4444}
         sock, _ = self.run_service("delete_acct caseuser")
         # "caseuser" != "CaseUser", so we expect "error Account does not exist"
         self.assertTrue(any(b"error Account does not exist" in s for s in sock.sent),
