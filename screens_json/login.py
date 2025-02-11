@@ -2,7 +2,8 @@ import tkinter as tk
 from tkinter import messagebox
 import hashlib
 import socket
-import screens.signup
+import screens_json.signup
+import json
 
 def login(s: socket.SocketType, root: tk.Tk, username: tk.StringVar, password: tk.StringVar):
     username_str = username.get().strip()
@@ -16,13 +17,17 @@ def login(s: socket.SocketType, root: tk.Tk, username: tk.StringVar, password: t
         messagebox.showerror("Error", "Username must be alphanumeric")
         return
     
-    message = f"login {username_str} {hashlib.sha256(password_str.encode('utf-8')).hexdigest()}".encode("utf-8")
+    message_dict = {
+        "username": username_str,
+        "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest()
+    }
+    message = f"login {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
 def launch_signup(s: socket.SocketType, root: tk.Tk):
     root.destroy()
-    screens.signup.launch_window(s)
+    screens_json.signup.launch_window(s)
 
 def launch_window(s: socket.SocketType):
     # Create main window

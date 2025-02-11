@@ -76,7 +76,8 @@ def service_connection(key, mask):
             words = data.outb.decode("utf-8").split(" ")
             command = " ".join(words)
             if words[0] == "create":
-                username = words[1].strip()
+                username = words[1]
+                username.strip()
                 password = " ".join(words[2:])
 
                 if username.isalnum() == False:

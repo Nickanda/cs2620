@@ -1,36 +1,40 @@
 import tkinter as tk
-from argon2 import PasswordHasher
 import socket
-import screens.signup
-import screens.user_list
-import screens.send_message
-import screens.messages
-import screens.delete_messages
-
-hasher = PasswordHasher()
+import screens_json.signup
+import screens_json.user_list
+import screens_json.send_message
+import screens_json.messages
+import screens_json.delete_messages
+import json
 
 def open_read_messages(s: socket.socket, root: tk.Tk, username: str):
     root.destroy()
-    screens.messages.launch_window(s, [], username)
+    screens_json.messages.launch_window(s, [], username)
 
 def open_send_message(s: socket.socket, root: tk.Tk, current_user: str):
     root.destroy()
-    screens.send_message.launch_window(s, current_user)
+    screens_json.send_message.launch_window(s, current_user)
 
 def open_delete_messages(s: socket.socket, root: tk.Tk, current_user: str):
     root.destroy()
-    screens.delete_messages.launch_window(s, current_user)
+    screens_json.delete_messages.launch_window(s, current_user)
 
 def open_user_list(s: socket.socket, root: tk.Tk, username: str):
     root.destroy()
-    screens.user_list.launch_window(s, [], username)
+    screens_json.user_list.launch_window(s, [], username)
 
 def logout(s: socket.socket, root: tk.Tk, username: str):
-    s.sendall(f"logout {username}".encode("utf-8"))
+    message_dict = {
+        "username": username
+    }
+    s.sendall(f"logout {json.dumps(message_dict)}".encode("utf-8"))
     root.destroy()
 
 def delete_account(s: socket.socket, root: tk.Tk, username: str):
-    s.sendall(f"delete_acct {username}".encode("utf-8"))
+    message_dict = {
+        "username": username
+    }
+    s.sendall(f"delete_acct {json.dumps(message_dict)}".encode("utf-8"))
     root.destroy()
 
 def launch_window(s: socket.SocketType, username: str, num_messages: int):

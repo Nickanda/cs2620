@@ -1,9 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
-from argon2 import PasswordHasher
 import socket
-
-hasher = PasswordHasher()
+import json
 
 def send_message(s: socket.SocketType, root: tk.Tk, recipient: tk.StringVar, message: tk.Text, current_user: str):
     recipient_str = recipient.get().strip()
@@ -17,12 +15,20 @@ def send_message(s: socket.SocketType, root: tk.Tk, recipient: tk.StringVar, mes
         messagebox.showerror("Error", "Username must be alphanumeric")
         return
     
-    message = f"send_msg {current_user} {recipient_str} {message_str}".encode("utf-8")
+    message_dict = {
+        "sender": current_user,
+        "recipient": recipient_str,
+        "message": message_str
+    }
+    message = f"send_msg {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
 def launch_home(s: socket.SocketType, root: tk.Tk, username: str): 
-    message = f"refresh_home {username}".encode("utf-8")
+    message_dict = {
+        "username": username
+    }
+    message = f"refresh_home {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 

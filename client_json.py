@@ -1,10 +1,10 @@
 import socket
 from tkinter import messagebox
-import screens.login
-import screens.signup
-import screens.home
-import screens.messages
-import screens.user_list
+import screens_json.login
+import screens_json.signup
+import screens_json.home
+import screens_json.messages
+import screens_json.user_list
 import json
 
 HOST = "127.0.0.1"
@@ -19,17 +19,17 @@ def connect_socket():
         s.connect((HOST, PORT))
         while True:
             if current_state == "signup":
-                screens.signup.launch_window(s)
+                screens_json.signup.launch_window(s)
             elif current_state == "login":
-                screens.login.launch_window(s)
+                screens_json.login.launch_window(s)
             elif current_state == "home" and logged_in_user is not None:
-                screens.home.launch_window(s, logged_in_user, state_data)
+                screens_json.home.launch_window(s, logged_in_user, state_data)
             elif current_state == "messages" and logged_in_user is not None:
-                screens.messages.launch_window(s, state_data if state_data else [], logged_in_user)
+                screens_json.messages.launch_window(s, state_data if state_data else [], logged_in_user)
             elif current_state == "user_list" and logged_in_user is not None:
-                screens.user_list.launch_window(s, state_data if state_data else "", logged_in_user)
+                screens_json.user_list.launch_window(s, state_data if state_data else "", logged_in_user)
             else:
-                screens.signup.launch_window(s)
+                screens_json.signup.launch_window(s)
 
             data = s.recv(1024)
             words = data.decode("utf-8").split()
