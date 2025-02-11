@@ -30,7 +30,7 @@ def launch_window(s: socket.SocketType, current_user: str):
     # Create main window
     root = tk.Tk()
     root.title(f"Delete Messages - {current_user}")
-    root.geometry("300x600")
+    root.geometry("600x400")
 
     # Recipient Label and Entry
     tk.Label(root, text="Message IDs of the messages you wish to delete (comma-separated, no spaces):").pack()

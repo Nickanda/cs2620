@@ -48,7 +48,7 @@ def launch_window(s: socket.SocketType, messages: list[str], current_user: str):
     # Create main window
     root = tk.Tk()
     root.title(f"Messages - {current_user}")
-    root.geometry("300x200")
+    root.geometry("400x600")
 
     # Undelivered Messages
     tk.Label(root, text="Number of Messages to Get:").pack()

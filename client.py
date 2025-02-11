@@ -49,7 +49,10 @@ def connect_socket():
                 state_data = int(words[1])
                 current_state = "home"
             elif words[0] == "messages":
-                state_data = [word.split('_') for word in words[1].split("\0")]
+                if len(words) > 1:
+                    state_data = [word.split('_') for word in words[1].split("\0")]
+                else:
+                    state_data = []
                 current_state = "messages"
             elif words[0] == "logout":
                 logged_in_user = None
