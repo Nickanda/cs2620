@@ -143,6 +143,10 @@ def service_connection(key, mask):
             elif words[0] == "delete_acct": 
                 acct = words[1]
                 # first delete account from `users`
+                if acct not in users:
+                    send_message(sock, command, data, "error Account does not exist".encode("utf-8"))
+                    return
+                
                 del users[acct]
                 
                 # when deleting an account, delete all messages that a user is the sender or receiver of 

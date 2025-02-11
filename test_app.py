@@ -452,19 +452,19 @@ class TestScreensDeleteMessage(unittest.TestCase):
         self.tk_root.destroy()
     def test_delete_message_valid(self):
         delete_ids_var = tk.StringVar(self.tk_root, value="1,2,3")
-        with patch('screens.delete_message.messagebox.showerror') as mock_showerror:
+        with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
             delete_messages.delete_message(self.dummy_socket, self.root, delete_ids_var, "testuser")
             self.assertTrue(any(msg.startswith(b"delete_msg testuser 1,2,3") for msg in self.dummy_socket.sent))
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
     def test_delete_message_invalid_ids(self):
         delete_ids_var = tk.StringVar(self.tk_root, value="1, 2,3")  # contains a space
-        with patch('screens.delete_message.messagebox.showerror') as mock_showerror:
+        with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
             delete_messages.delete_message(self.dummy_socket, self.root, delete_ids_var, "testuser")
             mock_showerror.assert_called_once_with("Error", "Delete IDs must be alphanumeric comma-separated list")
     def test_delete_message_invalid_input(self):
         delete_ids_var = tk.StringVar(self.tk_root, value="bad input!")
-        with patch('screens.delete_message.messagebox.showerror') as mock_showerror:
+        with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
             delete_message.delete_message(self.dummy_socket, self.root, delete_ids_var, "user")
             mock_showerror.assert_called_once_with("Error", "Delete IDs must be alphanumeric comma-separated list")
 
