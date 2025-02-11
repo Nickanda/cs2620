@@ -1,10 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
-from argon2 import PasswordHasher
 import socket
 import re
-
-hasher = PasswordHasher()
+import json
 
 def delete_message(s: socket.SocketType, root: tk.Tk, delete_ids: tk.StringVar, current_user: str):
     delete_ids_str = delete_ids.get().strip()
@@ -17,12 +15,20 @@ def delete_message(s: socket.SocketType, root: tk.Tk, delete_ids: tk.StringVar, 
         messagebox.showerror("Error", "Delete IDs must be alphanumeric comma-separated list")
         return
     
-    message = f"delete_msg {current_user} {delete_ids_str}".encode("utf-8")
+    message_dict = {
+        "delete_ids": delete_ids_str,
+        "current_user": current_user
+    }
+
+    message = f"delete_msg {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
 def launch_home(s: socket.SocketType, root: tk.Tk, username: str): 
-    message = f"refresh_home {username}".encode("utf-8")
+    message_dict = {
+        "username": username
+    }
+    message = f"refresh_home {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 

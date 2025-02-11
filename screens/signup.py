@@ -3,6 +3,7 @@ from tkinter import messagebox
 import socket
 import screens.login
 import hashlib
+import json
 
 def create_user(s: socket.SocketType, root: tk.Tk, username: tk.StringVar, password: tk.StringVar):
     username_str = username.get()
@@ -15,9 +16,12 @@ def create_user(s: socket.SocketType, root: tk.Tk, username: tk.StringVar, passw
     if username_str.isalnum() == False:
         messagebox.showerror("Error", "Username must be alphanumeric")
         return
-    
-    hashed_password = hashlib.sha256(password_str.encode("utf-8")).hexdigest()
-    message = f"create {username_str} {hashed_password}".encode("utf-8")
+
+    message_dict = {
+        "username": username_str,
+        "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest()
+    }
+    message = f"create {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 

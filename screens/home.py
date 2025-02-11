@@ -6,6 +6,7 @@ import screens.user_list
 import screens.send_message
 import screens.messages
 import screens.delete_messages
+import json
 
 hasher = PasswordHasher()
 
@@ -26,11 +27,17 @@ def open_user_list(s: socket.socket, root: tk.Tk, username: str):
     screens.user_list.launch_window(s, [], username)
 
 def logout(s: socket.socket, root: tk.Tk, username: str):
-    s.sendall(f"logout {username}".encode("utf-8"))
+    message_dict = {
+        "username": username
+    }
+    s.sendall(f"logout {json.dumps(message_dict)}".encode("utf-8"))
     root.destroy()
 
 def delete_account(s: socket.socket, root: tk.Tk, username: str):
-    s.sendall(f"delete_acct {username}".encode("utf-8"))
+    message_dict = {
+        "username": username
+    }
+    s.sendall(f"delete_acct {json.dumps(message_dict)}".encode("utf-8"))
     root.destroy()
 
 def launch_window(s: socket.SocketType, username: str, num_messages: int):

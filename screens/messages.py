@@ -1,9 +1,7 @@
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
-from argon2 import PasswordHasher
 import socket
-
-hasher = PasswordHasher()
+import json
 
 def get_undelivered_messages(s: socket.socket, root: tk.Tk, num_messages_var: tk.IntVar, current_user: str):
     num_messages = num_messages_var.get()
@@ -12,7 +10,11 @@ def get_undelivered_messages(s: socket.socket, root: tk.Tk, num_messages_var: tk
         messagebox.showerror("Error", "Number of messages must be greater than 0")
         return
   
-    s.sendall(f"get_undelivered {current_user} {num_messages}".encode("utf-8"))
+    message_dict = {
+        "username": current_user,
+        "num_messages": num_messages
+    }
+    s.sendall(f"get_undelivered {json.dumps(message_dict)}".encode("utf-8"))
     root.destroy()
     
 def get_delivered_messages(s: socket.socket, root: tk.Tk, num_messages_var: tk.IntVar, current_user: str):
@@ -22,7 +24,11 @@ def get_delivered_messages(s: socket.socket, root: tk.Tk, num_messages_var: tk.I
         messagebox.showerror("Error", "Number of messages must be greater than 0")
         return
 
-    s.sendall(f"get_delivered {current_user} {num_messages}".encode("utf-8"))
+    message_dict = {
+        "username": current_user,
+        "num_messages": num_messages
+    }
+    s.sendall(f"get_delivered {json.dumps(message_dict)}".encode("utf-8"))
     root.destroy()
 
 def pagination(index: int, operation: str):
@@ -32,7 +38,10 @@ def pagination(index: int, operation: str):
         index -= 25
 
 def launch_home(s: socket.SocketType, root: tk.Tk, username: str): 
-    message = f"refresh_home {username}".encode("utf-8")
+    message_dict = {
+        "username": username
+    }
+    message = f"refresh_home {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
@@ -43,7 +52,7 @@ def launch_window(s: socket.SocketType, messages: list[str], current_user: str):
         to_display = messages[current_index:]
     else:
         to_display = messages[current_index:current_index + 25]
-    messages_to_display = [f'[{msg[1]}, ID#{msg[0]}]: {"_".join(msg[2:])}' for msg in to_display]
+    messages_to_display = [f'[{msg["sender"]}, ID#{msg["id"]}]: {msg["message"]}' for msg in to_display]
 
     # Create main window
     root = tk.Tk()

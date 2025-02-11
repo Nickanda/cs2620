@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import scrolledtext
 import socket
+import json
 
 def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
     search_str = search.get().strip()
@@ -14,7 +15,10 @@ def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
         messagebox.showerror("Error", "Search characters must be alphanumeric or *")
         return
     
-    message = f"search {search_str}".encode("utf-8")
+    message_dict = {
+        "search": search_str
+    }
+    message = f"search {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
@@ -25,7 +29,10 @@ def pagination(index: int, operation: str):
         index -= 25
 
 def launch_home(s: socket.SocketType, root: tk.Tk, username: str): 
-    message = f"refresh_home {username}".encode("utf-8")
+    message_dict = {
+        "username": username
+    }
+    message = f"refresh_home {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
