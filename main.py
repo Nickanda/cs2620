@@ -199,24 +199,19 @@ def service_connection(key, mask):
                 delivered_msgs = messages["delivered"]
                 undelivered_msgs = messages["undelivered"]
                 
-                to_deliver = ""
+                to_deliver = []
                 for ind, msg_obj in enumerate(undelivered_msgs): 
                     if num_msg_view == 0: 
                         break 
                         
                     if msg_obj["receiver"] == receiver: 
-                        to_deliver += f'{msg_obj["id"]} {msg_obj["sender"]} {msg_obj["message"]}\0'
+                        to_deliver.append(f'{msg_obj["id"]}_{msg_obj["sender"]}_{msg_obj["message"]}')
                         delivered_msgs.append(msg_obj)
                         del undelivered_msgs[ind]
 
                         num_msg_view -= 1
                 
-                num_messages = 0
-                for msg_obj in messages["undelivered"]:
-                    if msg_obj["receiver"] == receiver:
-                        num_messages += 1
-
-                send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
+                send_message(sock, command, data, ("messages " + '\0'.join(to_deliver)).encode("utf-8"))
                 database_wrapper.save_database(users, messages, settings)
             
             elif words[0] == "get_delivered":
@@ -231,10 +226,7 @@ def service_connection(key, mask):
                 for ind, msg_obj in enumerate(delivered_msgs): 
                     if num_msg_view == 0: 
                         break 
-                    
-                    print(msg_obj)
-                    print(receiver)
-                    print(num_msg_view)
+
                     if msg_obj["receiver"] == receiver: 
                         to_deliver.append(f'{msg_obj["id"]}_{msg_obj["sender"]}_{msg_obj["message"]}')
 

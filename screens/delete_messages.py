@@ -28,7 +28,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
 def launch_window(s: socket.SocketType, current_user: str):
     # Create main window
     root = tk.Tk()
-    root.title("Delete Messages")
+    root.title(f"Delete Messages - {current_user}")
     root.geometry("300x600")
 
     # Recipient Label and Entry

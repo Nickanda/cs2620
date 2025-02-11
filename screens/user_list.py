@@ -42,7 +42,7 @@ def launch_window(s: socket.SocketType, user_list: list[str], username: str):
     root.geometry("400x600")
 
     # Search Label and Entry
-    tk.Label(root, text="Enter search pattern (* for all):").pack
+    tk.Label(root, text="Enter search pattern (* for all):").pack()
     search_var = tk.StringVar(root)
     tk.Entry(root, textvariable=search_var).pack()
 

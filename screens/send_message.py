@@ -28,7 +28,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
 def launch_window(s: socket.SocketType, current_user: str):
     # Create main window
     root = tk.Tk()
-    root.title("Send Message")
+    root.title(f"Send Message - {current_user}")
     root.geometry("300x600")
 
     # Recipient Label and Entry

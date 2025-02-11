@@ -22,12 +22,11 @@ def connect_socket():
             elif current_state == "login":
                 screens.login.launch_window(s)
             elif current_state == "home" and logged_in_user is not None:
-                screens.home.launch_window(s, logged_in_user, 0)
+                screens.home.launch_window(s, logged_in_user, state_data)
             elif current_state == "messages" and logged_in_user is not None:
-                print(state_data)
                 screens.messages.launch_window(s, state_data if state_data else [], logged_in_user)
             elif current_state == "user_list" and logged_in_user is not None:
-                screens.user_list.launch_window(s, state_data if state_data else "")
+                screens.user_list.launch_window(s, state_data if state_data else "", logged_in_user)
             else:
                 screens.signup.launch_window(s)
 
