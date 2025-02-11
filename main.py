@@ -200,14 +200,17 @@ def service_connection(key, mask):
             elif words[0] == "get_undelivered": 
                 # user decides on the number of messages to view
                 receiver = words[1]  # i.e. logged in user
+
+                if words[2].isdigit():  # Ensures all characters are digits
+                    num_msg_view = int(words[2])
+                else:
+                    send_message(sock, command, data, "error Number of messages to view must be an integer")
+                    return
+
                 num_msg_view = int(words[2])
 
                 delivered_msgs = messages["delivered"]
                 undelivered_msgs = messages["undelivered"]
-                
-                if not isinstance(num_msg_view, int):
-                    send_message(sock, command, data, "error Number of messages to view must be an integer")
-                    return
                 
                 to_deliver = []
                 remove_indices = []  # List to store indices to delete later
@@ -236,11 +239,13 @@ def service_connection(key, mask):
             elif words[0] == "get_delivered":
                 # user decides on the number of messages to view
                 receiver = words[1] # i.e. logged in user
-                num_msg_view = int(words[2])
 
-                if not isinstance(num_msg_view, int):
+                if words[2].isdigit():  # Ensures all characters are digits
+                    num_msg_view = int(words[2])
+                else:
                     send_message(sock, command, data, "error Number of messages to view must be an integer")
                     return
+                # num_msg_view = int(words[2])
                 
                 delivered_msgs = messages["delivered"]
                 undelivered_msgs = messages["undelivered"]
