@@ -1,5 +1,4 @@
 import tkinter as tk
-from argon2 import PasswordHasher
 import socket
 import screens.signup
 import screens.user_list
@@ -7,8 +6,6 @@ import screens.send_message
 import screens.messages
 import screens.delete_messages
 import json
-
-hasher = PasswordHasher()
 
 def open_read_messages(s: socket.socket, root: tk.Tk, username: str):
     root.destroy()
