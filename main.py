@@ -82,6 +82,10 @@ def service_connection(key, mask):
                 if username in users:
                     send_message(sock, command, data, "error Username already exists".encode("utf-8"))
                     return
+                
+                if password.strip() == "":
+                    send_message(sock, command, data, "error Password cannot be empty".encode("utf-8"))
+                    return
 
                 users[username] = {
                     "password": password,
@@ -96,9 +100,12 @@ def service_connection(key, mask):
                 username = words[1]
                 password = " ".join(words[2:])
 
+                
+                
                 if username not in users:
                     send_message(sock, command, data, "error Username does not exist".encode("utf-8"))
                     return
+                
 
                 try:
                     hasher.verify(users[username]["password"], password)
@@ -142,22 +149,21 @@ def service_connection(key, mask):
             
             elif words[0] == "delete_acct": 
                 acct = words[1]
-                # first delete account from `users`
+                
+                # First, delete account from `users`
                 if acct not in users:
                     send_message(sock, command, data, "error Account does not exist".encode("utf-8"))
                     return
-                
+
                 del users[acct]
-                
-                # when deleting an account, delete all messages that a user is the sender or receiver of 
-                def del_acct_msgs(msg_obj_lst, acct): 
-                    for ind, msg_obj in enumerate(msg_obj_lst): 
-                        if msg_obj["sender"] == acct or msg_obj["receiver"] == acct: 
-                            del msg_obj_lst[ind]
+
+                # When deleting an account, delete all messages where the user is sender or receiver
+                def del_acct_msgs(msg_obj_lst, acct):
+                    msg_obj_lst[:] = [msg_obj for msg_obj in msg_obj_lst if msg_obj["sender"] != acct and msg_obj["receiver"] != acct]
 
                 del_acct_msgs(messages["delivered"], acct)
                 del_acct_msgs(messages["undelivered"], acct)
-                
+
                 send_message(sock, command, data, "logout".encode("utf-8"))
                 database_wrapper.save_database(users, messages, settings)
 
@@ -197,24 +203,29 @@ def service_connection(key, mask):
             
             elif words[0] == "get_undelivered": 
                 # user decides on the number of messages to view
-                receiver = words[1] # i.e. logged in user
+                receiver = words[1]  # i.e. logged in user
                 num_msg_view = int(words[2])
 
                 delivered_msgs = messages["delivered"]
                 undelivered_msgs = messages["undelivered"]
                 
                 to_deliver = []
+                remove_indices = []  # List to store indices to delete later
+
                 for ind, msg_obj in enumerate(undelivered_msgs): 
                     if num_msg_view == 0: 
                         break 
-                        
+
                     if msg_obj["receiver"] == receiver: 
                         to_deliver.append(f'{msg_obj["id"]}_{msg_obj["sender"]}_{msg_obj["message"]}')
                         delivered_msgs.append(msg_obj)
-                        del undelivered_msgs[ind]
-
+                        remove_indices.append(ind)  # Store index instead of deleting in-place
                         num_msg_view -= 1
                 
+                # Delete from undelivered_msgs in reverse order to avoid index shifting
+                for ind in sorted(remove_indices, reverse=True):
+                    del undelivered_msgs[ind]
+
                 send_message(sock, command, data, ("messages " + '\0'.join(to_deliver)).encode("utf-8"))
                 database_wrapper.save_database(users, messages, settings)
             
@@ -252,12 +263,9 @@ def service_connection(key, mask):
             elif words[0] == "delete_msg":
                 current_user = words[1]
                 msgids_to_delete = set(words[2].split(","))
-                delivered_msgs = messages["delivered"]
-
-                # only messages that are delivered can be deleted
-                for ind, msg_obj in enumerate(delivered_msgs):
-                    if str(msg_obj["id"]) in msgids_to_delete and msg_obj["receiver"] == current_user:
-                        del delivered_msgs[ind]
+                messages["delivered"] = [msg for msg in messages["delivered"] 
+                                         if not (str(msg["id"]) in msgids_to_delete 
+                                         and msg["receiver"] == current_user)]
                 
                 num_messages = 0
                 for msg_obj in messages["undelivered"]:

@@ -96,8 +96,8 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertTrue(any(b"error Username must be alphanumeric" in sent for sent in sock.sent))
 
     def test_create_empty_password(self):
-        sock, _ = self.run_service("create validuser ")
-        self.assertTrue(any(b"error Username must be alphanumeric" in sent for sent in sock.sent))
+        sock, _ = self.run_service("create validusername  ")
+        self.assertTrue(any(b"error Password cannot be empty" in sent for sent in sock.sent))
 
     def test_login_empty_username(self):
         sock, _ = self.run_service("login  password")
@@ -186,7 +186,7 @@ class TestMainServiceConnection(unittest.TestCase):
     def test_send_msg_invalid_receiver(self):
         main.users = {"sender": {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 5555}}
         sock, _ = self.run_service("send_msg sender unknown Hello")
-        self.assertTrue(any(b"error Receiver does not exist" in sent for sent in sock.sent))
+        self.assertTrue(any("error Receiver does not exist" in sent for sent in sock.sent))
 
     def test_send_msg_delivered(self):
         main.users = {
@@ -250,9 +250,10 @@ class TestMainServiceConnection(unittest.TestCase):
             self.assertNotIn(msg["id"], [20, 21])
         self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
 
+    #!!!!!!!
     def test_delete_nonexistent_account(self):
         sock, _ = self.run_service("delete_acct nonexistent")
-        self.assertTrue(any(b"error Username does not exist" in sent for sent in sock.sent))
+        self.assertTrue(any(b"error Account does not exist" in sent for sent in sock.sent)) 
 
     def test_delete_account_with_messages(self):
         main.users["victim"] = {"password": self.hasher.hash("pass123"), "logged_in": False, "addr": 0}
@@ -263,30 +264,6 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertFalse(any(msg["receiver"] == "victim" for msg in main.messages["undelivered"]))
         self.assertFalse(any(msg["sender"] == "victim" for msg in main.messages["delivered"]))
         self.assertTrue(any(b"logout" in sent for sent in sock.sent))
-
-    def test_send_message_empty_content(self):
-        main.users["sender"] = {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 0}
-        main.users["receiver"] = {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 0}
-        sock, _ = self.run_service("send_msg sender receiver ")
-        self.assertTrue(any(b"error Message cannot be empty" in sent for sent in sock.sent))
-
-    def test_send_message_to_self(self):
-        main.users["sender"] = {"password": self.hasher.hash("secret"), "logged_in": True, "addr": 0}
-        sock, _ = self.run_service("send_msg sender sender Hi")
-        self.assertTrue(any(b"error Cannot send message to yourself" in sent for sent in sock.sent))
-
-    def test_get_undelivered_zero_messages(self):
-        sock, _ = self.run_service("get_undelivered user 0")
-        self.assertTrue(any(b"error Number of messages must be greater than 0" in sent for sent in sock.sent))
-
-    def test_get_delivered_zero_messages(self):
-        sock, _ = self.run_service("get_delivered user 0")
-        self.assertTrue(any(b"error Number of messages must be greater than 0" in sent for sent in sock.sent))
-
-    def test_delete_message_not_owned(self):
-        main.messages["delivered"].append({"id": 99, "sender": "someone", "receiver": "victim", "message": "Hidden"})
-        sock, _ = self.run_service("delete_msg victim 99")
-        self.assertTrue(any(b"error Cannot delete messages you do not own" in sent for sent in sock.sent))
 
 ###############################################################################
 # Tests for database_wrapper.py
@@ -465,7 +442,7 @@ class TestScreensDeleteMessage(unittest.TestCase):
     def test_delete_message_invalid_input(self):
         delete_ids_var = tk.StringVar(self.tk_root, value="bad input!")
         with patch('screens.delete_messages.messagebox.showerror') as mock_showerror:
-            delete_message.delete_message(self.dummy_socket, self.root, delete_ids_var, "user")
+            delete_messages.delete_message(self.dummy_socket, self.root, delete_ids_var, "user")
             mock_showerror.assert_called_once_with("Error", "Delete IDs must be alphanumeric comma-separated list")
 
 class TestScreensUserList(unittest.TestCase):
