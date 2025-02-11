@@ -9,16 +9,17 @@ hasher = PasswordHasher()
 def delete_message(s: socket.SocketType, root: tk.Tk, delete_ids: tk.StringVar, current_user: str):
     delete_ids_str = delete_ids.get().strip()
 
-    if delete_ids_str != "":
-        if re.match("^[a-zA-Z0-9,]+$", delete_ids_str) is None:
-            messagebox.showerror("Error", "Delete IDs must be alphanumeric comma-separated list")
-            return
-        
-        message = f"delete_msg {current_user} {delete_ids_str}".encode("utf-8")
-        s.sendall(message)
-        root.destroy()
-    else:
+    if delete_ids_str == "":
         messagebox.showerror("Error", "All fields are required")
+        return
+    
+    if re.match("^[a-zA-Z0-9,]+$", delete_ids_str) is None:
+        messagebox.showerror("Error", "Delete IDs must be alphanumeric comma-separated list")
+        return
+    
+    message = f"delete_msg {current_user} {delete_ids_str}".encode("utf-8")
+    s.sendall(message)
+    root.destroy()
 
 def launch_home(s: socket.SocketType, root: tk.Tk, username: str): 
     message = f"refresh_home {username}".encode("utf-8")

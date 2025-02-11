@@ -1,26 +1,25 @@
 import tkinter as tk
 from tkinter import messagebox
-from argon2 import PasswordHasher
 import socket
 import screens.login
-
-hasher = PasswordHasher()
+import hashlib
 
 def create_user(s: socket.SocketType, root: tk.Tk, username: tk.StringVar, password: tk.StringVar):
     username_str = username.get()
     password_str = password.get()
 
-    if username_str != "" and password_str != "":
-        if username_str.isalnum() == False:
-            messagebox.showerror("Error", "Username must be alphanumeric")
-            return
-        
-        hashed_password = hasher.hash(password_str)
-        message = f"create {username_str} {hashed_password}".encode("utf-8")
-        s.sendall(message)
-        root.destroy()
-    else:
+    if username_str == "" or password_str == "":
         messagebox.showerror("Error", "All fields are required")
+        return
+    
+    if username_str.isalnum() == False:
+        messagebox.showerror("Error", "Username must be alphanumeric")
+        return
+    
+    hashed_password = hashlib.sha256(password_str.encode("utf-8")).hexdigest()
+    message = f"create {username_str} {hashed_password}".encode("utf-8")
+    s.sendall(message)
+    root.destroy()
 
 def launch_login(s: socket.SocketType, root: tk.Tk):
     root.destroy()

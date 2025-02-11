@@ -8,20 +8,22 @@ hasher = PasswordHasher()
 def get_undelivered_messages(s: socket.socket, root: tk.Tk, num_messages_var: tk.IntVar, current_user: str):
     num_messages = num_messages_var.get()
 
-    if num_messages > 0:
-        s.sendall(f"get_undelivered {current_user} {num_messages}".encode("utf-8"))
-        root.destroy()
-    else:
+    if num_messages <= 0:
         messagebox.showerror("Error", "Number of messages must be greater than 0")
+        return
+  
+    s.sendall(f"get_undelivered {current_user} {num_messages}".encode("utf-8"))
+    root.destroy()
     
 def get_delivered_messages(s: socket.socket, root: tk.Tk, num_messages_var: tk.IntVar, current_user: str):
     num_messages = num_messages_var.get()
 
-    if num_messages > 0:
-        s.sendall(f"get_delivered {current_user} {num_messages}".encode("utf-8"))
-        root.destroy()
-    else:
+    if num_messages <= 0:
         messagebox.showerror("Error", "Number of messages must be greater than 0")
+        return
+
+    s.sendall(f"get_delivered {current_user} {num_messages}".encode("utf-8"))
+    root.destroy()
 
 def pagination(index: int, operation: str):
     if operation == "next":

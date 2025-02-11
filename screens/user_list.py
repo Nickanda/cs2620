@@ -6,16 +6,17 @@ import socket
 def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
     search_str = search.get().strip()
 
-    if search_str != "":
-        if search_str.isalnum() == False and ("*" not in search_str):
-            messagebox.showerror("Error", "Search characters must be alphanumeric or *")
-            return
-        
-        message = f"search {search_str}".encode("utf-8")
-        s.sendall(message)
-        root.destroy()
-    else:
+    if search_str == "":
         messagebox.showerror("Error", "All fields are required")
+        return
+    
+    if search_str.isalnum() == False and ("*" not in search_str):
+        messagebox.showerror("Error", "Search characters must be alphanumeric or *")
+        return
+    
+    message = f"search {search_str}".encode("utf-8")
+    s.sendall(message)
+    root.destroy()
 
 def pagination(index: int, operation: str):
     if operation == "next":

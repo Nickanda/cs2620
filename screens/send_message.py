@@ -9,16 +9,17 @@ def send_message(s: socket.SocketType, root: tk.Tk, recipient: tk.StringVar, mes
     recipient_str = recipient.get().strip()
     message_str = message.get("1.0", tk.END).strip()
 
-    if recipient_str != "" and message_str != "":
-        if recipient_str.isalnum() == False:
-            messagebox.showerror("Error", "Username must be alphanumeric")
-            return
-        
-        message = f"send_msg {current_user} {recipient_str} {message_str}".encode("utf-8")
-        s.sendall(message)
-        root.destroy()
-    else:
+    if recipient_str == "" or message_str == "":
         messagebox.showerror("Error", "All fields are required")
+        return
+    
+    if recipient_str.isalnum() == False:
+        messagebox.showerror("Error", "Username must be alphanumeric")
+        return
+    
+    message = f"send_msg {current_user} {recipient_str} {message_str}".encode("utf-8")
+    s.sendall(message)
+    root.destroy()
 
 def launch_home(s: socket.SocketType, root: tk.Tk, username: str): 
     message = f"refresh_home {username}".encode("utf-8")

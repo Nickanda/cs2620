@@ -2,11 +2,9 @@ import socket
 import selectors
 import types
 import database_wrapper
-import argon2
 import fnmatch
 
 sel = selectors.DefaultSelector()
-hasher = argon2.PasswordHasher()
 
 HOST = "127.0.0.1"
 PORT = 54400
@@ -39,9 +37,16 @@ def accept_wrapper(sock):
     events = selectors.EVENT_READ | selectors.EVENT_WRITE
     sel.register(conn, events, data=data)
 
-def send_message(sock: socket.socket, command: str, data, message: bytes):
-    sock.send(message)
+def send_message(sock: socket.socket, command: str, data, message: str):
+    sock.send(message.encode("utf-8"))
     data.outb = data.outb[len(command):]
+
+def get_new_messages(username):
+    num_messages = 0
+    for msg_obj in messages["undelivered"]:
+        if msg_obj["receiver"] == username:
+            num_messages += 1
+    return num_messages
 
 def service_connection(key, mask):
     sock = key.fileobj
@@ -75,15 +80,15 @@ def service_connection(key, mask):
                 password = " ".join(words[2:])
 
                 if username.isalnum() == False:
-                    send_message(sock, command, data, "error Username must be alphanumeric".encode("utf-8"))
+                    send_message(sock, command, data, "error Username must be alphanumeric")
                     return
 
                 if username in users:
-                    send_message(sock, command, data, "error Username already exists".encode("utf-8"))
+                    send_message(sock, command, data, "error Username already exists")
                     return
                 
                 if password.strip() == "":
-                    send_message(sock, command, data, "error Password cannot be empty".encode("utf-8"))
+                    send_message(sock, command, data, "error Password cannot be empty")
                     return
 
                 users[username] = {
@@ -92,7 +97,7 @@ def service_connection(key, mask):
                     "addr": data.addr[1]
                 }
 
-                send_message(sock, command, data, f"login {username} 0".encode("utf-8"))
+                send_message(sock, command, data, f"login {username} 0")
                 database_wrapper.save_database(users, messages, settings)
 
             elif words[0] == "login":
@@ -101,18 +106,16 @@ def service_connection(key, mask):
 
                 
                 if username not in users:
-                    send_message(sock, command, data, "error Username does not exist".encode("utf-8"))
+                    send_message(sock, command, data, "error Username does not exist")
                     return
                 
 
-                try:
-                    hasher.verify(users[username]["password"], password)
-                except argon2.exceptions.VerifyMismatchError:
-                    send_message(sock, command, data, "error Incorrect password".encode("utf-8"))
+                if password != users[username]["password"]:
+                    send_message(sock, command, data, "error Incorrect password")
                     return
                 
                 if users[username]["logged_in"]:
-                    send_message(sock, command, data, "error User already logged in".encode("utf-8"))
+                    send_message(sock, command, data, "error User already logged in")
                     return
 
                 num_messages = 0
@@ -123,34 +126,34 @@ def service_connection(key, mask):
                 users[username]["logged_in"] = True
                 users[username]["addr"] = data.addr[1]
 
-                send_message(sock, command, data, f"login {username} {num_messages}".encode("utf-8"))
+                send_message(sock, command, data, f"login {username} {num_messages}")
                 database_wrapper.save_database(users, messages, settings)
 
             elif words[0] == "logout":
                 username = words[1]
 
                 if username not in users:
-                    send_message(sock, command, data, "error Username does not exist".encode("utf-8"))
+                    send_message(sock, command, data, "error Username does not exist")
                     return
                 
                 users[username]["logged_in"] = False
                 users[username]["addr"] = 0
     
-                send_message(sock, command, data, "logout".encode("utf-8"))
+                send_message(sock, command, data, "logout")
                 database_wrapper.save_database(users, messages, settings)
 
             elif words[0] == "search":
                 pattern = words[1] if len(words) > 1 else "*"
                 matched_users = fnmatch.filter(users.keys(), pattern)
 
-                send_message(sock, command, data, f"user_list {' '.join(matched_users)}".encode("utf-8")) 
+                send_message(sock, command, data, f"user_list {' '.join(matched_users)}") 
             
             elif words[0] == "delete_acct": 
                 acct = words[1]
                 
                 # First, delete account from `users`
                 if acct not in users:
-                    send_message(sock, command, data, "error Account does not exist".encode("utf-8"))
+                    send_message(sock, command, data, "error Account does not exist")
                     return
 
                 del users[acct]
@@ -162,7 +165,7 @@ def service_connection(key, mask):
                 del_acct_msgs(messages["delivered"], acct)
                 del_acct_msgs(messages["undelivered"], acct)
 
-                send_message(sock, command, data, "logout".encode("utf-8"))
+                send_message(sock, command, data, "logout")
                 database_wrapper.save_database(users, messages, settings)
 
             elif words[0] == "send_msg":
@@ -173,7 +176,7 @@ def service_connection(key, mask):
 
                 # if message is sent to a user that does not exist, raise an error
                 if receiver not in users: 
-                    send_message(sock, command, data, "error Receiver does not exist".encode("utf-8"))
+                    send_message(sock, command, data, "error Receiver does not exist")
                     return 
                 
                 message = message.replace("\0", "NULL")
@@ -191,12 +194,9 @@ def service_connection(key, mask):
                 else: 
                     messages["undelivered"].append(msg_obj)
 
-                num_messages = 0
-                for msg_obj in messages["undelivered"]:
-                    if msg_obj["receiver"] == sender:
-                        num_messages += 1
+                num_messages = get_new_messages(sender)
 
-                send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
+                send_message(sock, command, data, f"refresh_home {num_messages}")
                 database_wrapper.save_database(users, messages, settings)
             
             elif words[0] == "get_undelivered": 
@@ -224,7 +224,7 @@ def service_connection(key, mask):
                 for ind in sorted(remove_indices, reverse=True):
                     del undelivered_msgs[ind]
 
-                send_message(sock, command, data, ("messages " + '\0'.join(to_deliver)).encode("utf-8"))
+                send_message(sock, command, data, ("messages " + '\0'.join(to_deliver)))
                 database_wrapper.save_database(users, messages, settings)
             
             elif words[0] == "get_delivered":
@@ -245,18 +245,15 @@ def service_connection(key, mask):
 
                         num_msg_view -= 1
                 
-                send_message(sock, command, data, ("messages " + '\0'.join(to_deliver)).encode("utf-8"))
+                send_message(sock, command, data, ("messages " + '\0'.join(to_deliver)))
             
             elif words[0] == "refresh_home":
                 # Count up undelivered messages
                 username = words[1]
 
-                num_messages = 0
-                for msg_obj in messages["undelivered"]:
-                    if msg_obj["receiver"] == username:
-                        num_messages += 1
+                num_messages = get_new_messages(username)
 
-                send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
+                send_message(sock, command, data, f"refresh_home {num_messages}")
             
             elif words[0] == "delete_msg":
                 current_user = words[1]
@@ -265,12 +262,9 @@ def service_connection(key, mask):
                                          if not (str(msg["id"]) in msgids_to_delete 
                                          and msg["receiver"] == current_user)]
                 
-                num_messages = 0
-                for msg_obj in messages["undelivered"]:
-                    if msg_obj["receiver"] == current_user:
-                        num_messages += 1
+                num_messages = get_new_messages(current_user)
 
-                send_message(sock, command, data, f"refresh_home {num_messages}".encode("utf-8"))
+                send_message(sock, command, data, f"refresh_home {num_messages}")
                 database_wrapper.save_database(users, messages, settings)
 
             else:
