@@ -4,7 +4,6 @@ import types
 import database_wrapper
 import argon2
 import fnmatch
-import datetime
 
 sel = selectors.DefaultSelector()
 hasher = argon2.PasswordHasher()
@@ -174,7 +173,7 @@ def service_connection(key, mask):
 
                 # if message is sent to a user that does not exist, raise an error
                 if receiver not in users: 
-                    send_message(sock, command, data, "error Receiver does not exist")
+                    send_message(sock, command, data, "error Receiver does not exist".encode("utf-8"))
                     return 
                 
                 message = message.replace("\0", "NULL")
