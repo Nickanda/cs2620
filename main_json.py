@@ -381,8 +381,8 @@ if __name__ == "__main__":
     # Load data from the database at startup
     users, messages, settings = database_wrapper.load_database()
 
-    HOST = settings["host"]
-    PORT = settings["port"]
+    HOST = settings["host_json"]
+    PORT = settings["port_json"]
 
     # Create and bind the listening socket
     lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1,8 +1,8 @@
 """
 Client-side application for connecting to a server using a socket.
 
-This script establishes a connection to a server at a specified host and port, handling 
-user authentication, navigation between different screens, and processing commands received 
+This script establishes a connection to a server at a specified host and port, handling
+user authentication, navigation between different screens, and processing commands received
 from the server.
 
 Key Features:
@@ -23,6 +23,7 @@ import screens_json.home
 import screens_json.messages
 import screens_json.user_list
 import json
+import database_wrapper
 
 # Define the server host and port
 HOST = "127.0.0.1"
@@ -99,4 +100,9 @@ def connect_socket():
 
 # Run the socket connection when the script is executed
 if __name__ == "__main__":
+    settings = database_wrapper.load_client_database()
+
+    HOST = settings["host_json"]
+    PORT = settings["port_json"]
+
     connect_socket()

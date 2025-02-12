@@ -25,6 +25,20 @@ messages_database_path = "database/messages.json"
 settings_database_path = "database/settings.json"
 
 
+def safe_load(filepath, default_value):
+    """
+    Safely loads a JSON file. If the file is missing or contains invalid JSON, it
+    initializes the file with a default value and returns that instead.
+    """
+    try:
+        with open(filepath, "r") as file:
+            return json.load(file)
+    except (json.JSONDecodeError, FileNotFoundError):
+        with open(filepath, "w") as file:
+            json.dump(default_value, file)
+        return default_value
+
+
 def load_database():
     """
     Loads user, message, and settings databases from JSON files.
@@ -34,20 +48,6 @@ def load_database():
     # Create the database folder if it does not exist
     if not os.path.exists("database"):
         os.makedirs("database")
-
-    # Function to load JSON safely
-    def safe_load(filepath, default_value):
-        """
-        Safely loads a JSON file. If the file is missing or contains invalid JSON, it
-        initializes the file with a default value and returns that instead.
-        """
-        try:
-            with open(filepath, "r") as file:
-                return json.load(file)
-        except (json.JSONDecodeError, FileNotFoundError):
-            with open(filepath, "w") as file:
-                json.dump(default_value, file)
-            return default_value
 
     # Load users with safe default
     users = safe_load(users_database_path, {})
@@ -63,10 +63,40 @@ def load_database():
 
     # Load settings with safe default
     settings = safe_load(
-        settings_database_path, {"counter": 0, "host": "127.0.0.1", "port": 54400}
+        settings_database_path,
+        {
+            "counter": 0,
+            "host": "127.0.0.1",
+            "port": 54400,
+            "host_json": "127.0.0.1",
+            "port_json": 54444,
+        },
     )
 
     return users, messages, settings
+
+
+def load_client_database():
+    """
+    Loads user, message, and settings databases from JSON files for the client.
+    """
+    settings = None
+
+    if not os.path.exists("database"):
+        raise Exception("Database directory does not exist.")
+
+    settings = safe_load(
+        settings_database_path,
+        {
+            "counter": 0,
+            "host": "127.0.0.1",
+            "port": 54400,
+            "host_json": "127.0.0.1",
+            "port_json": 54444,
+        },
+    )
+
+    return settings
 
 
 def save_database(users, messages, settings):
