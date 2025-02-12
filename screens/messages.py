@@ -56,16 +56,6 @@ def get_delivered_messages(
     root.destroy()
 
 
-def pagination(index: int, operation: str):
-    """
-    Adjusts the index for pagination based on the operation ('next' or 'prev').
-    """
-    if operation == "next":
-        index += 25
-    elif operation == "prev":
-        index -= 25
-
-
 def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     """
     Sends a request to refresh the home screen for the given username and closes the current window.
@@ -75,28 +65,39 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     root.destroy()
 
 
+def update_display(text_area, user_list, current_index, prev_button, next_button):
+    """
+    Updates the displayed user list based on the current index.
+    """
+    start = current_index.get()
+    end = start + 25 if start + 25 < len(user_list) else len(user_list)
+    to_display = user_list[start:end]
+    messages_to_display = [
+        f"[{msg[1]}, ID#{msg[0]}]: {'_'.join(msg[2:])}" for msg in to_display
+    ]
+
+    # Clear and update text area
+    text_area.configure(state="normal")
+    text_area.delete("1.0", tk.END)
+    text_area.insert(tk.INSERT, "Users:\n" + "\n".join(messages_to_display))
+    text_area.configure(state="disabled")
+
+    # Enable/Disable buttons based on index
+    prev_button.config(state=tk.NORMAL if start > 0 else tk.DISABLED)
+    next_button.config(state=tk.NORMAL if end < len(user_list) else tk.DISABLED)
+
+
 def launch_window(s: socket.SocketType, messages: list[str], current_user: str):
     """
     Creates the main window for displaying messages with options to fetch delivered/undelivered messages
     and navigate through paginated messages.
     """
-    current_index = 0
-
-    # Determine the subset of messages to display
-    if current_index + 25 >= len(messages):
-        to_display = messages[current_index:]
-    else:
-        to_display = messages[current_index : current_index + 25]
-
-    # Format messages for display
-    messages_to_display = [
-        f"[{msg[1]}, ID#{msg[0]}]: {'_'.join(msg[2:])}" for msg in to_display
-    ]
-
     # Create the main window
     root = tk.Tk()
     root.title(f"Messages - {current_user}")
     root.geometry("400x600")
+
+    current_index = tk.IntVar(root, 0)  # Initialize pagination index
 
     # Input field for specifying the number of messages to fetch
     tk.Label(root, text="Number of Messages to Get:").pack()
@@ -119,29 +120,41 @@ def launch_window(s: socket.SocketType, messages: list[str], current_user: str):
 
     # Scrolled text area to display messages
     message_list = scrolledtext.ScrolledText(root)
-    message_list.insert(tk.INSERT, "Messages:\n" + "\n".join(messages_to_display))
-    message_list.configure(state="disabled")
     message_list.pack()
 
-    # Pagination buttons
-    tk.Button(
+    # Display the messages in the text area
+    prev_button = tk.Button(
         root,
         text="Previous 25",
-        command=lambda: pagination(current_index, "prev"),
-        state=tk.DISABLED if current_index == 0 else tk.NORMAL,
-    ).pack()
+        state=tk.DISABLED,  # Initially disabled
+        command=lambda: (
+            current_index.set(current_index.get() - 25),
+            update_display(
+                message_list, messages, current_index, prev_button, next_button
+            ),
+        ),
+    )
+    prev_button.pack()
 
-    tk.Button(
+    next_button = tk.Button(
         root,
         text="Next 25",
-        command=lambda: pagination(current_index, "next"),
-        state=tk.DISABLED if current_index + 25 >= len(messages) else tk.NORMAL,
-    ).pack()
+        state=tk.NORMAL if len(messages) > 25 else tk.DISABLED,
+        command=lambda: (
+            current_index.set(current_index.get() + 25),
+            update_display(
+                message_list, messages, current_index, prev_button, next_button
+            ),
+        ),
+    )
+    next_button.pack()
 
     # Home button to return to the main menu
     tk.Button(
         root, text="Home", command=lambda: launch_home(s, root, current_user)
     ).pack(pady=10)
+
+    update_display(message_list, messages, current_index, prev_button, next_button)
 
     # Run the Tkinter event loop
     root.mainloop()

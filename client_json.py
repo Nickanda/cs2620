@@ -17,7 +17,7 @@ def connect_socket():
     Establishes a connection to the server and handles different UI states based on server responses.
     """
     logged_in_user = None
-    current_state = "signup" # Set initial state
+    current_state = "signup"  # Set initial state
     state_data = None
 
     # Create a socket and connect to the server
@@ -40,7 +40,7 @@ def connect_socket():
                     s, state_data if state_data else "", logged_in_user
                 )
             else:
-                screens_json.signup.launch_window(s) # Default to signup screen
+                screens_json.signup.launch_window(s)  # Default to signup screen
 
             # Receive and decode data from the server
             data = s.recv(1024)
@@ -59,9 +59,9 @@ def connect_socket():
                 current_state = "user_list"
                 state_data = json_data["user_list"]
             elif words[0] == "error":
-                # Display an error message
-                print(f"Error: {' '.join(words[1:])}")
-                messagebox.showerror("Error", f"{' '.join(words[1:])}")
+                # Handle errors from the server
+                print(f"Error: {json_data['error']}")
+                messagebox.showerror("Error", json_data["error"])
             elif words[0] == "refresh_home":
                 # Refresh the home screen with undelivered messages
                 state_data = json_data["undeliv_messages"]

@@ -79,6 +79,8 @@ def service_connection(key, mask):
         if data.outb:
             words = data.outb.decode("utf-8").split(" ")
             command = " ".join(words)
+
+            # Account creation command
             if words[0] == "create":
                 username = words[1]
                 username.strip()
@@ -107,6 +109,7 @@ def service_connection(key, mask):
                 send_message(sock, command, data, f"login {username} 0")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Login command
             elif words[0] == "login":
                 username = words[1]
                 password = " ".join(words[2:]).strip()
@@ -134,6 +137,7 @@ def service_connection(key, mask):
                 send_message(sock, command, data, f"login {username} {num_messages}")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Logout command
             elif words[0] == "logout":
                 username = words[1]
 
@@ -147,6 +151,7 @@ def service_connection(key, mask):
                 send_message(sock, command, data, "logout")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Search command
             elif words[0] == "search":
                 pattern = words[1] if len(words) > 1 else "*"
                 matched_users = fnmatch.filter(users.keys(), pattern)
@@ -155,6 +160,7 @@ def service_connection(key, mask):
                     sock, command, data, f"user_list {' '.join(matched_users)}"
                 )
 
+            # Delete account command
             elif words[0] == "delete_acct":
                 acct = words[1]
 
@@ -179,6 +185,7 @@ def service_connection(key, mask):
                 send_message(sock, command, data, "logout")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Send message command
             elif words[0] == "send_msg":
                 #! assumptions about the thing
                 sender = words[1]
@@ -212,6 +219,7 @@ def service_connection(key, mask):
                 send_message(sock, command, data, f"refresh_home {num_messages}")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Get undelivered messages command
             elif words[0] == "get_undelivered":
                 # user decides on the number of messages to view
                 receiver = words[1]  # i.e. logged in user
@@ -258,6 +266,7 @@ def service_connection(key, mask):
                 send_message(sock, command, data, ("messages " + "\0".join(to_deliver)))
                 database_wrapper.save_database(users, messages, settings)
 
+            # Get delivered messages command
             elif words[0] == "get_delivered":
                 # user decides on the number of messages to view
                 receiver = words[1]  # i.e. logged in user
@@ -293,6 +302,7 @@ def service_connection(key, mask):
 
                 send_message(sock, command, data, ("messages " + "\0".join(to_deliver)))
 
+            # Home page command
             elif words[0] == "refresh_home":
                 # Count up undelivered messages
                 username = words[1]
@@ -301,6 +311,7 @@ def service_connection(key, mask):
 
                 send_message(sock, command, data, f"refresh_home {num_messages}")
 
+            # Delete message command
             elif words[0] == "delete_msg":
                 current_user = words[1]
                 msgids_to_delete = set(words[2].split(","))

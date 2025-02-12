@@ -58,22 +58,35 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     root.destroy()
 
 
+def update_display(text_area, user_list, current_index, prev_button, next_button):
+    """
+    Updates the displayed user list based on the current index.
+    """
+    start = current_index.get()
+    end = start + 25 if start + 25 < len(user_list) else len(user_list)
+    to_display = user_list[start:end]
+
+    # Clear and update text area
+    text_area.configure(state="normal")
+    text_area.delete("1.0", tk.END)
+    text_area.insert(tk.INSERT, "Users:\n" + "\n".join(to_display))
+    text_area.configure(state="disabled")
+
+    # Enable/Disable buttons based on index
+    prev_button.config(state=tk.NORMAL if start > 0 else tk.DISABLED)
+    next_button.config(state=tk.NORMAL if end < len(user_list) else tk.DISABLED)
+
+
 def launch_window(s: socket.SocketType, user_list: list[str], username: str):
     """
     Launches the main Tkinter window displaying a paginated user list with search functionality.
     """
-    current_index = 0 # Initialize pagination index
-
-    # Determine users to display (first 25 users or remaining if less than 25)
-    if current_index + 25 >= len(user_list):
-        to_display = user_list[current_index:]
-    else:
-        to_display = user_list[current_index : current_index + 25]
-
     # Create main Tkinter window
     root = tk.Tk()
     root.title("User List")
     root.geometry("400x600")
+
+    current_index = tk.IntVar(root, 0)  # Initialize pagination index
 
     # Search bar
     tk.Label(root, text="Enter search pattern (* for all):").pack()
@@ -82,33 +95,43 @@ def launch_window(s: socket.SocketType, user_list: list[str], username: str):
 
     # Scrolled text area for displaying user list
     text_area = scrolledtext.ScrolledText(root)
-    text_area.insert(tk.INSERT, "Users:\n" + "\n".join(to_display))
-    text_area.configure(state="disabled")
     text_area.pack()
 
-    # Pagination - Previous button (disabled if at the beginning)
-    tk.Button(
+    prev_button = tk.Button(
         root,
         text="Previous 25",
-        command=lambda: pagination(current_index, "prev"),
-        state=tk.DISABLED if current_index == 0 else tk.NORMAL,
-    ).pack()
+        state=tk.DISABLED,  # Initially disabled
+        command=lambda: (
+            current_index.set(current_index.get() - 25),
+            update_display(
+                text_area, user_list, current_index, prev_button, next_button
+            ),
+        ),
+    )
+    prev_button.pack()
+
+    next_button = tk.Button(
+        root,
+        text="Next 25",
+        state=tk.NORMAL if len(user_list) > 25 else tk.DISABLED,
+        command=lambda: (
+            current_index.set(current_index.get() + 25),
+            update_display(
+                text_area, user_list, current_index, prev_button, next_button
+            ),
+        ),
+    )
+    next_button.pack()
 
     # Search button
     tk.Button(root, text="Search", command=lambda: search(s, root, search_var)).pack()
-
-    # Pagination - Next button (disabled if at the end of the list)
-    tk.Button(
-        root,
-        text="Next 25",
-        command=lambda: pagination(current_index, "next"),
-        state=tk.DISABLED if current_index + 25 >= len(user_list) else tk.NORMAL,
-    ).pack()
 
     # Home button to navigate back
     tk.Button(root, text="Home", command=lambda: launch_home(s, root, username)).pack(
         pady=10
     )
+
+    update_display(text_area, user_list, current_index, prev_button, next_button)
 
     # Run Tkinter event loop
     root.mainloop()
