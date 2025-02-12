@@ -108,9 +108,9 @@ class TestMainServiceConnection(unittest.TestCase):
 
     def test_create_invalid_username(self):
         # Non-alphanumeric username should return an error.
-        sock, _ = self.run_service("create inv@lid somehash")
+        sock, _ = self.run_service("0 create inv@lid somehash")
         self.assertTrue(
-            any(b"error Username must be alphanumeric" in sent for sent in sock.sent)
+            any(b"0 error Username must be alphanumeric" in sent for sent in sock.sent)
         )
 
     def test_create_existing_username(self):
@@ -120,27 +120,27 @@ class TestMainServiceConnection(unittest.TestCase):
             "logged_in": True,
             "addr": 1111,
         }
-        sock, _ = self.run_service("create testuser somehash")
+        sock, _ = self.run_service("0 create testuser somehash")
         self.assertTrue(
-            any(b"error Username already exists" in sent for sent in sock.sent)
+            any(b"0 error Username already exists" in sent for sent in sock.sent)
         )
 
     def test_create_empty_username(self):
-        sock, _ = self.run_service("create  somehash")
+        sock, _ = self.run_service("0 create  somehash")
         self.assertTrue(
-            any(b"error Username must be alphanumeric" in sent for sent in sock.sent)
+            any(b"0 error Username must be alphanumeric" in sent for sent in sock.sent)
         )
 
     def test_create_empty_password(self):
-        sock, _ = self.run_service("create validusername  ")
+        sock, _ = self.run_service("0 create validusername  ")
         self.assertTrue(
-            any(b"error Password cannot be empty" in sent for sent in sock.sent)
+            any(b"0 error Password cannot be empty" in sent for sent in sock.sent)
         )
 
     def test_login_empty_username(self):
-        sock, _ = self.run_service("login  password")
+        sock, _ = self.run_service("0 login  password")
         self.assertTrue(
-            any(b"error Username does not exist" in sent for sent in sock.sent)
+            any(b"0 error Username does not exist" in sent for sent in sock.sent)
         )
 
     def test_login_empty_password(self):
@@ -149,34 +149,38 @@ class TestMainServiceConnection(unittest.TestCase):
             "logged_in": False,
             "addr": 0,
         }
-        sock, _ = self.run_service("login validuser ")
-        self.assertTrue(any(b"error Incorrect password" in sent for sent in sock.sent))
+        sock, _ = self.run_service("0 login validuser ")
+        self.assertTrue(
+            any(b"0 error Incorrect password" in sent for sent in sock.sent)
+        )
 
     def test_create_success(self):
         # Creating a new account should succeed.
-        sock, _ = self.run_service("create newuser somehash")
-        self.assertTrue(any(b"login newuser 0" in sent for sent in sock.sent))
+        sock, _ = self.run_service("0 create newuser somehash")
+        self.assertTrue(any(b"0 login newuser 0" in sent for sent in sock.sent))
         self.assertIn("newuser", main.users)
         self.assertTrue(main.users["newuser"]["logged_in"])
 
     def test_login_nonexistent(self):
-        sock, _ = self.run_service("login unknown password")
+        sock, _ = self.run_service("0 login unknown password")
         self.assertTrue(
-            any(b"error Username does not exist" in sent for sent in sock.sent)
+            any(b"0 error Username does not exist" in sent for sent in sock.sent)
         )
 
     def test_login_incorrect_password(self):
         hashed = hashlib.sha256("correct".encode("utf-8")).hexdigest()
         main.users["testuser"] = {"password": hashed, "logged_in": False, "addr": 0}
-        sock, _ = self.run_service("login testuser wrong")
-        self.assertTrue(any(b"error Incorrect password" in sent for sent in sock.sent))
+        sock, _ = self.run_service("0 login testuser wrong")
+        self.assertTrue(
+            any(b"0 error Incorrect password" in sent for sent in sock.sent)
+        )
 
     def test_login_already_logged_in(self):
         hashed = hashlib.sha256("secret".encode("utf-8")).hexdigest()
         main.users["testuser"] = {"password": hashed, "logged_in": True, "addr": 2222}
-        sock, _ = self.run_service("login testuser secret")
+        sock, _ = self.run_service("0 login testuser secret")
         self.assertTrue(
-            any(b"error User already logged in" in sent for sent in sock.sent)
+            any(b"0 error User already logged in" in sent for sent in sock.sent)
         )
 
     def test_login_success(self):
@@ -186,14 +190,14 @@ class TestMainServiceConnection(unittest.TestCase):
         main.messages["undelivered"].append(
             {"id": 1, "sender": "other", "receiver": "testuser", "message": "Hello"}
         )
-        sock, _ = self.run_service(f"login testuser {hashed}")
-        self.assertTrue(any(b"login testuser 1" in sent for sent in sock.sent))
+        sock, _ = self.run_service(f"0 login testuser {hashed}")
+        self.assertTrue(any(b"0 login testuser 1" in sent for sent in sock.sent))
         self.assertTrue(main.users["testuser"]["logged_in"])
 
     def test_logout_nonexistent(self):
-        sock, _ = self.run_service("logout unknown")
+        sock, _ = self.run_service("0 logout unknown")
         self.assertTrue(
-            any(b"error Username does not exist" in sent for sent in sock.sent)
+            any(b"0 error Username does not exist" in sent for sent in sock.sent)
         )
 
     def test_logout_success(self):
@@ -202,8 +206,8 @@ class TestMainServiceConnection(unittest.TestCase):
             "logged_in": True,
             "addr": 3333,
         }
-        sock, _ = self.run_service("logout testuser")
-        self.assertTrue(any(b"logout" in sent for sent in sock.sent))
+        sock, _ = self.run_service("0 logout testuser")
+        self.assertTrue(any(b"0 logout" in sent for sent in sock.sent))
         self.assertFalse(main.users["testuser"]["logged_in"])
 
     def test_search(self):
@@ -213,9 +217,9 @@ class TestMainServiceConnection(unittest.TestCase):
             "bob": {"password": "x", "logged_in": False, "addr": 0},
             "charlie": {"password": "x", "logged_in": False, "addr": 0},
         }
-        sock, _ = self.run_service("search a*")
+        sock, _ = self.run_service("0 search a*")
         # Expected to match "alice"
-        self.assertTrue(any(b"user_list alice" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 user_list alice" in sent for sent in sock.sent))
 
     def test_delete_acct(self):
         main.users = {
@@ -234,7 +238,7 @@ class TestMainServiceConnection(unittest.TestCase):
         main.messages["undelivered"] = [
             {"id": 3, "sender": "testuser", "receiver": "other", "message": "Test"}
         ]
-        sock, _ = self.run_service("delete_acct testuser")
+        sock, _ = self.run_service("0 delete_acct testuser")
         self.assertNotIn("testuser", main.users)
         for msg in main.messages["delivered"]:
             self.assertNotEqual(msg["sender"], "testuser")
@@ -251,9 +255,9 @@ class TestMainServiceConnection(unittest.TestCase):
                 "addr": 5555,
             }
         }
-        sock, _ = self.run_service("send_msg sender unknown Hello")
+        sock, _ = self.run_service("0 send_msg sender unknown Hello")
         self.assertTrue(
-            any(b"error Receiver does not exist" in sent for sent in sock.sent)
+            any(b"0 error Receiver does not exist" in sent for sent in sock.sent)
         )
 
     def test_send_msg_delivered(self):
@@ -266,9 +270,9 @@ class TestMainServiceConnection(unittest.TestCase):
             "receiver": {"password": "x", "logged_in": True, "addr": 7777},
         }
         initial_delivered = len(main.messages["delivered"])
-        sock, _ = self.run_service("send_msg sender receiver Hi there")
+        sock, _ = self.run_service("0 send_msg sender receiver Hi there")
         self.assertEqual(len(main.messages["delivered"]), initial_delivered + 1)
-        self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 refresh_home" in sent for sent in sock.sent))
 
     def test_send_msg_undelivered(self):
         main.users = {
@@ -280,9 +284,9 @@ class TestMainServiceConnection(unittest.TestCase):
             "receiver": {"password": "x", "logged_in": False, "addr": 0},
         }
         initial_undelivered = len(main.messages["undelivered"])
-        sock, _ = self.run_service("send_msg sender receiver Hello")
+        sock, _ = self.run_service("0 send_msg sender receiver Hello")
         self.assertEqual(len(main.messages["undelivered"]), initial_undelivered + 1)
-        self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 refresh_home" in sent for sent in sock.sent))
 
     def test_get_undelivered(self):
         # Setup some undelivered messages.
@@ -291,12 +295,12 @@ class TestMainServiceConnection(unittest.TestCase):
             {"id": 2, "sender": "bob", "receiver": "testuser", "message": "Msg2"},
             {"id": 3, "sender": "charlie", "receiver": "other", "message": "Msg3"},
         ]
-        sock, _ = self.run_service("get_undelivered testuser 2")
+        sock, _ = self.run_service("0 get_undelivered testuser 2")
         delivered_ids = [msg["id"] for msg in main.messages["delivered"]]
         self.assertIn(1, delivered_ids)
         self.assertIn(2, delivered_ids)
         self.assertEqual(len(main.messages["undelivered"]), 1)
-        self.assertTrue(any(b"messages" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 messages" in sent for sent in sock.sent))
 
     def test_get_delivered(self):
         main.messages["delivered"] = [
@@ -304,16 +308,16 @@ class TestMainServiceConnection(unittest.TestCase):
             {"id": 11, "sender": "bob", "receiver": "testuser", "message": "Msg11"},
             {"id": 12, "sender": "charlie", "receiver": "other", "message": "Msg12"},
         ]
-        sock, _ = self.run_service("get_delivered testuser 1")
-        self.assertTrue(any(b"messages" in sent for sent in sock.sent))
+        sock, _ = self.run_service("0 get_delivered testuser 1")
+        self.assertTrue(any(b"0 messages" in sent for sent in sock.sent))
 
     def test_refresh_home(self):
         main.messages["undelivered"] = [
             {"id": 5, "sender": "x", "receiver": "testuser", "message": "Msg5"},
             {"id": 6, "sender": "y", "receiver": "testuser", "message": "Msg6"},
         ]
-        sock, _ = self.run_service("refresh_home testuser")
-        self.assertTrue(any(b"refresh_home 2" in sent for sent in sock.sent))
+        sock, _ = self.run_service("0 refresh_home testuser")
+        self.assertTrue(any(b"0 refresh_home 2" in sent for sent in sock.sent))
 
     def test_delete_msg(self):
         main.messages["delivered"] = [
@@ -321,15 +325,15 @@ class TestMainServiceConnection(unittest.TestCase):
             {"id": 21, "sender": "bob", "receiver": "testuser", "message": "Msg21"},
             {"id": 22, "sender": "charlie", "receiver": "other", "message": "Msg22"},
         ]
-        sock, _ = self.run_service("delete_msg testuser 20,21")
+        sock, _ = self.run_service("0 delete_msg testuser 20,21")
         for msg in main.messages["delivered"]:
             self.assertNotIn(msg["id"], [20, 21])
-        self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 refresh_home" in sent for sent in sock.sent))
 
     def test_delete_nonexistent_account(self):
-        sock, _ = self.run_service("delete_acct nonexistent")
+        sock, _ = self.run_service("0 delete_acct nonexistent")
         self.assertTrue(
-            any(b"error Account does not exist" in sent for sent in sock.sent)
+            any(b"0 error Account does not exist" in sent for sent in sock.sent)
         )
 
     def test_delete_account_with_messages(self):
@@ -344,7 +348,7 @@ class TestMainServiceConnection(unittest.TestCase):
         main.messages["delivered"].append(
             {"id": 2, "sender": "victim", "receiver": "other", "message": "Message2"}
         )
-        sock, _ = self.run_service("delete_acct victim")
+        sock, _ = self.run_service("0 delete_acct victim")
         self.assertNotIn("victim", main.users)
         self.assertFalse(
             any(msg["receiver"] == "victim" for msg in main.messages["undelivered"])
@@ -352,25 +356,25 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertFalse(
             any(msg["sender"] == "victim" for msg in main.messages["delivered"])
         )
-        self.assertTrue(any(b"logout" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 logout" in sent for sent in sock.sent))
 
     def test_create_username_too_long(self):
         long_username = "u" * 64  # 64-char username
-        command = f"create {long_username} somepasswordhash"
+        command = f"0 create {long_username} somepasswordhash"
         sock, _ = self.run_service(command)
         self.assertIn(
             long_username,
             main.users,
             "The user should still be created (no explicit code blocking).",
         )
-        self.assertTrue(any(b"login" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 login" in sent for sent in sock.sent))
 
     def test_create_password_too_long(self):
         long_password = "p" * 128
-        command = f"create shortusername {long_password}"
+        command = f"0 create shortusername {long_password}"
         sock, _ = self.run_service(command)
         self.assertIn("shortusername", main.users)
-        self.assertTrue(any(b"login shortusername 0" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 login shortusername 0" in sent for sent in sock.sent))
 
     def test_send_msg_empty_message_body(self):
         main.users = {
@@ -381,28 +385,30 @@ class TestMainServiceConnection(unittest.TestCase):
             },
             "receiver": {"password": "x", "logged_in": True, "addr": 10000},
         }
-        sock, _ = self.run_service("send_msg sender receiver ")
+        sock, _ = self.run_service("0 send_msg sender receiver ")
         self.assertEqual(
             len(main.messages["delivered"]),
             1,
             "Even empty messages are delivered under current logic.",
         )
-        self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
+        self.assertTrue(any(b"0 refresh_home" in sent for sent in sock.sent))
 
     def test_login_with_long_password(self):
         hashed = hashlib.sha256("secret".encode("utf-8")).hexdigest()
         main.users["longpass"] = {"password": hashed, "logged_in": False, "addr": 0}
         long_wrong_password = "x" * 200
-        sock, _ = self.run_service(f"login longpass {long_wrong_password}")
-        self.assertTrue(any(b"error Incorrect password" in sent for sent in sock.sent))
+        sock, _ = self.run_service(f"0 login longpass {long_wrong_password}")
+        self.assertTrue(
+            any(b"0 error Incorrect password" in sent for sent in sock.sent)
+        )
 
     def test_get_undelivered_zero_requested(self):
         main.messages["undelivered"] = [
             {"id": 1, "sender": "a", "receiver": "user", "message": "Hello"}
         ]
-        sock, _ = self.run_service("get_undelivered user 0")
+        sock, _ = self.run_service("0 get_undelivered user 0")
         self.assertTrue(
-            any(b"messages " in sent for sent in sock.sent),
+            any(b"0 messages " in sent for sent in sock.sent),
             "Should respond with 'messages' command, but no messages returned.",
         )
         self.assertEqual(len(main.messages["undelivered"]), 1)
@@ -412,10 +418,11 @@ class TestMainServiceConnection(unittest.TestCase):
             {"id": 10, "sender": "alice", "receiver": "testuser", "message": "Msg10"},
             {"id": 11, "sender": "bob", "receiver": "testuser", "message": "Msg11"},
         ]
-        sock, _ = self.run_service("get_delivered testuser 5")
+        sock, _ = self.run_service("0 get_delivered testuser 5")
         self.assertTrue(
             any(
-                b"messages 10_alice_Msg10\x0011_bob_Msg11" in sent for sent in sock.sent
+                b"0 messages 10_alice_Msg10\x0011_bob_Msg11" in sent
+                for sent in sock.sent
             ),
             "Should deliver both messages since we asked for 5.",
         )
@@ -425,13 +432,13 @@ class TestMainServiceConnection(unittest.TestCase):
             "alice": {"password": "x", "logged_in": False, "addr": 0},
             "bob": {"password": "x", "logged_in": False, "addr": 0},
         }
-        sock, _ = self.run_service("search char*")
-        self.assertTrue(any(b"user_list" in sent for sent in sock.sent))
+        sock, _ = self.run_service("0 search char*")
+        self.assertTrue(any(b"0 user_list" in sent for sent in sock.sent))
         for sent in sock.sent:
-            if b"user_list" in sent:
+            if b"0 user_list" in sent:
                 self.assertEqual(
                     sent,
-                    b"user_list ",
+                    b"0 user_list ",
                     "No users matched, so it should be 'user_list ' with nothing else.",
                 )
 
@@ -476,7 +483,16 @@ class TestDatabaseWrapper(unittest.TestCase):
         users, messages, settings = database_wrapper.load_database()
         self.assertEqual(users, {})
         self.assertEqual(messages, {"undelivered": [], "delivered": []})
-        self.assertEqual(settings, {"counter": 0})
+        self.assertEqual(
+            settings,
+            {
+                "counter": 0,
+                "host": "127.0.0.1",
+                "port": 54400,
+                "host_json": "127.0.0.1",
+                "port_json": 54444,
+            },
+        )
 
     def test_save_and_load_database(self):
         users = {"user1": {"password": "hash", "logged_in": False, "addr": 0}}
@@ -486,7 +502,13 @@ class TestDatabaseWrapper(unittest.TestCase):
             ],
             "delivered": [],
         }
-        settings = {"counter": 1}
+        settings = {
+            "counter": 1,
+            "host": "127.0.0.1",
+            "port": 54400,
+            "host_json": "127.0.0.1",
+            "port_json": 54444,
+        }
         database_wrapper.save_database(users, messages, settings)
         loaded_users, loaded_messages, loaded_settings = (
             database_wrapper.load_database()
@@ -511,18 +533,41 @@ class TestDatabaseWrapper(unittest.TestCase):
         with open(database_wrapper.settings_database_path, "w") as f:
             f.write("{invalid_json}")  # Corrupted file
         users, messages, settings = database_wrapper.load_database()
-        self.assertEqual(settings, {"counter": 0})
+        self.assertEqual(
+            settings,
+            {
+                "counter": 0,
+                "host": "127.0.0.1",
+                "port": 54400,
+                "host_json": "127.0.0.1",
+                "port_json": 54444,
+            },
+        )
 
     def test_save_database_overwrites_files(self):
         # Write old data
         database_wrapper.save_database(
-            {"olduser": {}}, {"undelivered": [], "delivered": []}, {"counter": 99}
+            {"olduser": {}},
+            {"undelivered": [], "delivered": []},
+            {
+                "counter": 0,
+                "host": "127.0.0.1",
+                "port": 54400,
+                "host_json": "127.0.0.1",
+                "port_json": 54444,
+            },
         )
         # Overwrite with new data
         database_wrapper.save_database(
             {"newuser": {"password": "p"}},
             {"undelivered": [], "delivered": []},
-            {"counter": 0},
+            {
+                "counter": 0,
+                "host": "127.0.0.1",
+                "port": 54400,
+                "host_json": "127.0.0.1",
+                "port_json": 54444,
+            },
         )
         loaded_users, loaded_messages, loaded_settings = (
             database_wrapper.load_database()
@@ -561,7 +606,7 @@ class TestScreensSignup(unittest.TestCase):
             # Expect a message starting with "create testuser "
             self.assertTrue(
                 any(
-                    msg.startswith(b"create testuser ")
+                    msg.startswith(b"0 create testuser ")
                     for msg in self.dummy_socket.sent
                 )
             )
@@ -608,7 +653,9 @@ class TestScreensLogin(unittest.TestCase):
             login_screen.login(self.dummy_socket, self.root, username_var, password_var)
             self.assertTrue(
                 any(
-                    msg.startswith(f"login testuser {hashed_password}".encode("utf-8"))
+                    msg.startswith(
+                        f"0 login testuser {hashed_password}".encode("utf-8")
+                    )
                     for msg in self.dummy_socket.sent
                 )
             )
@@ -660,7 +707,7 @@ class TestScreensSendMessage(unittest.TestCase):
             )
             self.assertTrue(
                 any(
-                    msg.startswith(b"send_msg sender receiver Hello there")
+                    msg.startswith(b"0 send_msg sender receiver Hello there")
                     for msg in self.dummy_socket.sent
                 )
             )
@@ -719,7 +766,7 @@ class TestScreensDeleteMessage(unittest.TestCase):
             )
             self.assertTrue(
                 any(
-                    msg.startswith(b"delete_msg testuser 1,2,3")
+                    msg.startswith(b"0 delete_msg testuser 1,2,3")
                     for msg in self.dummy_socket.sent
                 )
             )
@@ -771,7 +818,9 @@ class TestScreensUserList(unittest.TestCase):
         with patch("screens.user_list.messagebox.showerror") as mock_showerror:
             user_list_screen.search(self.dummy_socket, self.root, search_var)
             self.assertTrue(
-                any(msg.startswith(b"search alice*") for msg in self.dummy_socket.sent)
+                any(
+                    msg.startswith(b"0 search alice*") for msg in self.dummy_socket.sent
+                )
             )
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
@@ -796,7 +845,7 @@ class TestScreensUserList(unittest.TestCase):
         with patch("screens.user_list.messagebox.showerror") as mock_showerror:
             user_list_screen.search(self.dummy_socket, self.root, search_var)
             self.assertTrue(
-                any(msg.startswith(b"search *") for msg in self.dummy_socket.sent)
+                any(msg.startswith(b"0 search *") for msg in self.dummy_socket.sent)
             )
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
@@ -820,7 +869,7 @@ class TestScreensMessages(unittest.TestCase):
             )
             self.assertTrue(
                 any(
-                    msg.startswith(b"get_undelivered testuser 2")
+                    msg.startswith(b"0 get_undelivered testuser 2")
                     for msg in self.dummy_socket.sent
                 )
             )
@@ -845,7 +894,7 @@ class TestScreensMessages(unittest.TestCase):
             )
             self.assertTrue(
                 any(
-                    msg.startswith(b"get_delivered testuser 3")
+                    msg.startswith(b"0 get_delivered testuser 3")
                     for msg in self.dummy_socket.sent
                 )
             )
@@ -905,14 +954,14 @@ class TestScreensHome(unittest.TestCase):
     def test_logout(self):
         home.logout(self.dummy_socket, self.root, "testuser")
         self.assertTrue(
-            any(msg.startswith(b"logout testuser") for msg in self.dummy_socket.sent)
+            any(msg.startswith(b"0 logout testuser") for msg in self.dummy_socket.sent)
         )
 
     def test_delete_account(self):
         home.delete_account(self.dummy_socket, self.root, "testuser")
         self.assertTrue(
             any(
-                msg.startswith(b"delete_acct testuser")
+                msg.startswith(b"0 delete_acct testuser")
                 for msg in self.dummy_socket.sent
             )
         )
@@ -927,7 +976,7 @@ class TestScreensDeleteMessageLaunchHome(unittest.TestCase):
         delete_messages.launch_home(self.dummy_socket, self.root, "testuser")
         self.assertTrue(
             any(
-                msg.startswith(b"refresh_home testuser")
+                msg.startswith(b"0 refresh_home testuser")
                 for msg in self.dummy_socket.sent
             )
         )
@@ -964,18 +1013,18 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
         return dummy_sock, data
 
     def test_create_numeric_only_username(self):
-        sock, _ = self.run_service("create 12345 passwordhash")
+        sock, _ = self.run_service("0 create 12345 passwordhash")
         self.assertIn("12345", main.users)
         self.assertTrue(main.users["12345"]["logged_in"])
-        self.assertTrue(any(b"login 12345 0" in s for s in sock.sent))
+        self.assertTrue(any(b"0 login 12345 0" in s for s in sock.sent))
 
     def test_login_with_trailing_spaces(self):
         # Create user first
         hashed = hashlib.sha256("secret123".encode("utf-8")).hexdigest()
         main.users["username"] = {"password": hashed, "logged_in": False, "addr": 0}
-        sock, _ = self.run_service(f"login username {hashed}   ")
+        sock, _ = self.run_service(f"0 login username {hashed}   ")
         self.assertTrue(
-            any(b"login username 0" in s for s in sock.sent),
+            any(b"0 login username 0" in s for s in sock.sent),
             "Login should succeed despite trailing spaces.",
         )
 
@@ -987,7 +1036,7 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
             "addr": 0,
         }
         main.users["receiver"] = {"password": "x", "logged_in": True, "addr": 1234}
-        sock, _ = self.run_service("send_msg sender receiver HelloWhileLoggedOut")
+        sock, _ = self.run_service("0 send_msg sender receiver HelloWhileLoggedOut")
         # Code doesn't currently explicitly block a logged-out sender from sending.
         # Let's see what happens: it processes it anyway.
         # There's no direct check for "logged_in" in `send_msg` logic.
@@ -999,7 +1048,7 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
             "Message was delivered even though the sender wasn't logged in.",
         )
         # This tests a possible system gap; we confirm the code's actual behavior.
-        self.assertTrue(any(b"refresh_home" in s for s in sock.sent))
+        self.assertTrue(any(b"0 refresh_home" in s for s in sock.sent))
 
     def test_delete_message_not_owned_by_user(self):
         # Create delivered messages for multiple users
@@ -1013,7 +1062,7 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
             },
         ]
         # Attempt to delete 100,101 as "testuser"
-        sock, _ = self.run_service("delete_msg testuser 100,101")
+        sock, _ = self.run_service("0 delete_msg testuser 100,101")
         # user "testuser" can only delete messages where testuser is the receiver, which includes msg id=101.
         # But msg id=100 is bob's. That should remain. The code only checks `(msg["receiver"] == current_user)`.
         # So 101 should be deleted, 100 should remain.
@@ -1025,7 +1074,7 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
             any(m["id"] == 100 for m in main.messages["delivered"]),
             "Message 100 should remain.",
         )
-        self.assertTrue(any(b"refresh_home" in s for s in sock.sent))
+        self.assertTrue(any(b"0 refresh_home" in s for s in sock.sent))
 
     def test_send_message_with_special_characters_in_body(self):
         main.users = {
@@ -1036,10 +1085,10 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
             },
             "receiver": {"password": "x", "logged_in": True, "addr": 30000},
         }
-        sock, _ = self.run_service("send_msg sender receiver Hello!@#$%^&*()")
+        sock, _ = self.run_service("0 send_msg sender receiver Hello!@#$%^&*()")
         self.assertEqual(len(main.messages["delivered"]), 1)
         self.assertIn("Hello!@#$%^&*()", main.messages["delivered"][0]["message"])
-        self.assertTrue(any(b"refresh_home" in s for s in sock.sent))
+        self.assertTrue(any(b"0 refresh_home" in s for s in sock.sent))
 
     def test_search_extreme_wildcard(self):
         main.users = {
@@ -1049,26 +1098,26 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
         }
         # '*' wildcard should return all, no matter how many
         sock, _ = self.run_service(
-            "search ****************************************************************"
+            "0 search ****************************************************************"
         )
         # We expect the server's fnmatch logic to consider that as a big wildcard too.
         # Should match everything.
         self.assertTrue(
             any(
-                b"user_list alice alice123 xyz" in s
-                or b"user_list xyz alice alice123" in s
+                b"0 user_list alice alice123 xyz" in s
+                or b"0 user_list xyz alice alice123" in s
                 for s in sock.sent
             )
         )
 
     def test_get_undelivered_nonexistent_user(self):
         # If a user not in `main.users` tries to get undelivered
-        sock, _ = self.run_service("get_undelivered ghost 2")
+        sock, _ = self.run_service("0 get_undelivered ghost 2")
         # The code does not check if the user actually exists, so it won't raise an error
         # but also won't deliver anything. It simply filters on the "receiver" field.
         # Make sure there's no crash or weird error:
         self.assertTrue(
-            any(b"error No undelivered messages" in s for s in sock.sent),
+            any(b"0 error No undelivered messages" in s for s in sock.sent),
             "Should respond with an error.",
         )
 
@@ -1076,17 +1125,17 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
         # If "ghost" doesn't exist in main.users, but user calls get_delivered ghost 2
         # The system doesn't specifically verify the user. It filters messages for the receiver=ghost.
         # So if none exist, it returns an empty message set.
-        sock, _ = self.run_service("get_delivered ghost 2")
+        sock, _ = self.run_service("0 get_delivered ghost 2")
         self.assertTrue(
-            any(b"error No delivered messages" in s for s in sock.sent),
+            any(b"0 error No delivered messages" in s for s in sock.sent),
             "Should respond with an error.",
         )
 
     def test_create_user_with_numeric_password(self):
         # Nothing in code forbids numeric passwords
-        sock, _ = self.run_service("create userwithnumericpass 1234567890")
+        sock, _ = self.run_service("0 create userwithnumericpass 1234567890")
         self.assertIn("userwithnumericpass", main.users)
-        self.assertTrue(any(b"login userwithnumericpass 0" in s for s in sock.sent))
+        self.assertTrue(any(b"0 login userwithnumericpass 0" in s for s in sock.sent))
 
     def test_delete_acct_case_sensitivity(self):
         # Suppose we treat usernames case-sensitively (the code does not do any .lower()).
@@ -1095,10 +1144,10 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
             "logged_in": True,
             "addr": 4444,
         }
-        sock, _ = self.run_service("delete_acct caseuser")
+        sock, _ = self.run_service("0 delete_acct caseuser")
         # "caseuser" != "CaseUser", so we expect "error Account does not exist"
         self.assertTrue(
-            any(b"error Account does not exist" in s for s in sock.sent),
+            any(b"0 error Account does not exist" in s for s in sock.sent),
             "No case-insensitive match, so it should yield error.",
         )
 
@@ -1122,7 +1171,7 @@ class TestScreensAdditional(unittest.TestCase):
                 self.dummy_socket, self.root, username_var, password_var
             )
             self.assertTrue(
-                any(msg.startswith(b"create 1234 ") for msg in self.dummy_socket.sent)
+                any(msg.startswith(b"0 create 1234 ") for msg in self.dummy_socket.sent)
             )
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
@@ -1137,7 +1186,7 @@ class TestScreensAdditional(unittest.TestCase):
             self.assertTrue(
                 any(
                     msg.startswith(
-                        f"login userwithspaces {hashed_password}".encode("utf-8")
+                        f"0 login userwithspaces {hashed_password}".encode("utf-8")
                     )
                     for msg in self.dummy_socket.sent
                 )
@@ -1156,7 +1205,7 @@ class TestScreensAdditional(unittest.TestCase):
             # Check if the message got sent
             self.assertTrue(
                 any(
-                    b'send_msg sender123 receiver Special chars: ~!@#$%^&*()_+{}|:"<>?'
+                    b'0 send_msg sender123 receiver Special chars: ~!@#$%^&*()_+{}|:"<>?'
                     in msg
                     for msg in self.dummy_socket.sent
                 )
@@ -1181,7 +1230,7 @@ class TestScreensAdditional(unittest.TestCase):
             # We want to ensure it's accepted as an alphanumeric plus '*'
             # "ab*cd" is valid based on code (it will do fnmatch on that).
             self.assertTrue(
-                any(msg.startswith(b"search ab*cd") for msg in self.dummy_socket.sent)
+                any(msg.startswith(b"0 search ab*cd") for msg in self.dummy_socket.sent)
             )
             self.assertTrue(self.root.destroy_called)
             mock_showerror.assert_not_called()
