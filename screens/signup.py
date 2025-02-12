@@ -43,7 +43,7 @@ def create_user(
     hashed_password = hashlib.sha256(password_str.encode("utf-8")).hexdigest()
 
     # Construct message and send to server
-    message = f"create {username_str} {hashed_password}".encode("utf-8")
+    message = f"0 create {username_str} {hashed_password}".encode("utf-8")
     s.sendall(message)
 
     # Close the signup window upon successful user creation request

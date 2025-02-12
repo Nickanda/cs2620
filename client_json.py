@@ -64,31 +64,35 @@ def connect_socket():
             data = s.recv(1024)
             words = data.decode("utf-8").split()
             json_data = json.loads(" ".join(words[1:]))
+            version = words[0]
 
             # Handle different server commands
-            if words[0] == "login":
+            if version != "0":
+                print("Error: mismatch of API version!")
+                messagebox.showerror("Error", "Mismatch of API version!")
+            elif words[1] == "login":
                 # Store the logged-in username/undelivered messages and go to home
                 logged_in_user = json_data["username"]
                 state_data = json_data["undeliv_messages"]
                 current_state = "home"
                 print(f"Logged in as {logged_in_user}")
-            elif words[0] == "user_list":
+            elif words[1] == "user_list":
                 # Transition to the user list screen
                 current_state = "user_list"
                 state_data = json_data["user_list"]
-            elif words[0] == "error":
+            elif words[1] == "error":
                 # Handle errors from the server
                 print(f"Error: {json_data['error']}")
                 messagebox.showerror("Error", json_data["error"])
-            elif words[0] == "refresh_home":
+            elif words[1] == "refresh_home":
                 # Refresh the home screen with undelivered messages
                 state_data = json_data["undeliv_messages"]
                 current_state = "home"
-            elif words[0] == "messages":
+            elif words[1] == "messages":
                 # Transition to the messages screen
                 state_data = json_data["messages"]
                 current_state = "messages"
-            elif words[0] == "logout":
+            elif words[1] == "logout":
                 # Log out the user and go back to the signup screen
                 logged_in_user = None
                 current_state = "signup"

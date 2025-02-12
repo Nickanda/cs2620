@@ -36,7 +36,7 @@ def get_undelivered_messages(
     message_dict = {"username": current_user, "num_messages": num_messages}
 
     # Send the request to fetch undelivered messages
-    s.sendall(f"get_undelivered {json.dumps(message_dict)}".encode("utf-8"))
+    s.sendall(f"0 get_undelivered {json.dumps(message_dict)}".encode("utf-8"))
 
     # Close the current Tkinter window
     root.destroy()
@@ -59,7 +59,7 @@ def get_delivered_messages(
     message_dict = {"username": current_user, "num_messages": num_messages}
 
     # Send the request to fetch delivered messages
-    s.sendall(f"get_delivered {json.dumps(message_dict)}".encode("utf-8"))
+    s.sendall(f"0 get_delivered {json.dumps(message_dict)}".encode("utf-8"))
 
     # Close the current Tkinter window
     root.destroy()
@@ -80,7 +80,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     Sends a request to refresh the home screen for the given username and closes the current window.
     """
     message_dict = {"username": username}
-    message = f"refresh_home {json.dumps(message_dict)}".encode("utf-8")
+    message = f"0 refresh_home {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 

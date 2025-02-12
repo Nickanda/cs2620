@@ -62,7 +62,7 @@ def logout(s: socket.socket, root: tk.Tk, username: str):
     Sends a logout request to the server and closes the application.
     """
     message_dict = {"username": username}
-    s.sendall(f"logout {json.dumps(message_dict)}".encode("utf-8"))
+    s.sendall(f"0 logout {json.dumps(message_dict)}".encode("utf-8"))
     root.destroy()
 
 
@@ -71,7 +71,7 @@ def delete_account(s: socket.socket, root: tk.Tk, username: str):
     Sends an account deletion request to the server and closes the application.
     """
     message_dict = {"username": username}
-    s.sendall(f"delete_acct {json.dumps(message_dict)}".encode("utf-8"))
+    s.sendall(f"0 delete_acct {json.dumps(message_dict)}".encode("utf-8"))
     root.destroy()
 
 

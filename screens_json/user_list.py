@@ -37,7 +37,7 @@ def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
 
     # Send search query to the server
     message_dict = {"search": search_str}
-    message = f"search {json.dumps(message_dict)}".encode("utf-8")
+    message = f"0 search {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
@@ -57,7 +57,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     Handles navigation back to the home screen by sending a refresh request to the server.
     """
     message_dict = {"username": username}
-    message = f"refresh_home {json.dumps(message_dict)}".encode("utf-8")
+    message = f"0 refresh_home {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     # Close the current window
     root.destroy()

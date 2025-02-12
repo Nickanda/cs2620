@@ -33,7 +33,7 @@ def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
         return
 
     # Send search query to the server
-    message = f"search {search_str}".encode("utf-8")
+    message = f"0 search {search_str}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
@@ -52,7 +52,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     """
     Handles navigation back to the home screen by sending a refresh request to the server.
     """
-    message = f"refresh_home {username}".encode("utf-8")
+    message = f"0 refresh_home {username}".encode("utf-8")
     s.sendall(message)
     # Close the current window
     root.destroy()

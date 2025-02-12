@@ -36,9 +36,9 @@ def login(
     if not username_str.isalnum():
         messagebox.showerror("Error", "Username must be alphanumeric")
         return
-    
+
     # Hash the password using SHA-256 for security
-    message = f"login {username_str} {hashlib.sha256(password_str.encode('utf-8')).hexdigest()}".encode(
+    message = f"0 login {username_str} {hashlib.sha256(password_str.encode('utf-8')).hexdigest()}".encode(
         "utf-8"
     )
 

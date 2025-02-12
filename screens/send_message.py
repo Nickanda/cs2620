@@ -40,7 +40,7 @@ def send_message(
         return
 
     # Format the message string for sending over the socket
-    message = f"send_msg {current_user} {recipient_str} {message_str}".encode("utf-8")
+    message = f"0 send_msg {current_user} {recipient_str} {message_str}".encode("utf-8")
     s.sendall(message)
 
     # Close the message window
@@ -51,7 +51,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     """
     Sends a request to refresh the home screen and closes the current window.
     """
-    message = f"refresh_home {username}".encode("utf-8")
+    message = f"0 refresh_home {username}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 

@@ -47,7 +47,7 @@ def create_user(
         "username": username_str,
         "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest(),
     }
-    message = f"create {json.dumps(message_dict)}".encode("utf-8")
+    message = f"0 create {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
 
     # Close the signup window upon successful user creation request

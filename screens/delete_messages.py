@@ -38,7 +38,7 @@ def delete_message(
         return
 
     # Format the delete message request and send it to the server
-    message = f"delete_msg {current_user} {delete_ids_str}".encode("utf-8")
+    message = f"0 delete_msg {current_user} {delete_ids_str}".encode("utf-8")
     s.sendall(message)
 
     # Close the Tkinter window after sending the request
@@ -49,7 +49,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     """
     Sends a request to refresh the home screen.
     """
-    message = f"refresh_home {username}".encode("utf-8")
+    message = f"0 refresh_home {username}".encode("utf-8")
     s.sendall(message)
 
     # Close the Tkinter window to return to home screen

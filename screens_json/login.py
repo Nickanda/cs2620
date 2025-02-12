@@ -45,9 +45,9 @@ def login(
         "username": username_str,
         "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest(),
     }
-    message = f"login {json.dumps(message_dict)}".encode("utf-8")
-    
-    # Send login request to the server    
+    message = f"0 login {json.dumps(message_dict)}".encode("utf-8")
+
+    # Send login request to the server
     s.sendall(message)
 
     # Close the login window after sending the credentials
