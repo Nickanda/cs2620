@@ -1,3 +1,12 @@
+"""
+Integration Tests
+
+This script implements tests for the main server functionality, database wrapper, and UI screens.
+It includes dummy classes to simulate components without real network/UI interactions.
+
+Last Updated: February 12, 2025
+"""
+
 import os
 import selectors
 import types
@@ -398,9 +407,6 @@ class TestMainServiceConnection(unittest.TestCase):
         )
         self.assertEqual(len(main.messages["undelivered"]), 1)
 
-    ############################################################################
-    ############################################################################
-    #! FLAGGING THIS ONE SINCE THIS PASSES HOW ARE WE JOINING THESE THINGS
     def test_get_delivered_more_than_exist(self):
         main.messages["delivered"] = [
             {"id": 10, "sender": "alice", "receiver": "testuser", "message": "Msg10"},
@@ -413,10 +419,6 @@ class TestMainServiceConnection(unittest.TestCase):
             ),
             "Should deliver both messages since we asked for 5.",
         )
-
-    #! FLAGGING THIS ONE SINCE THIS PASSES HOW ARE WE JOINING THESE THINGS
-    ############################################################################
-    ############################################################################
 
     def test_search_no_match(self):
         main.users = {
