@@ -1,3 +1,22 @@
+"""
+Client-side application for connecting to a server using a socket.
+
+This script establishes a connection to a server at a specified host and port, handling 
+user authentication, navigation between different screens, and processing commands received 
+from the server.
+
+Key Features:
+- Uses a standard text-based protocol to communicate with the server.
+- Supports user authentication (signup, login).
+- Manages different UI states: home, messages, user list.
+- Receives server responses as space-separated strings and processes them accordingly.
+- Handles errors and displays messages using Tkinter's messagebox.
+
+This version of the client handles server messages using simple space-separated commands.
+
+Last Updated: February 12, 2025
+"""
+
 import socket
 from tkinter import messagebox
 import screens.login
@@ -40,37 +59,46 @@ def connect_socket():
             else:
                 screens.signup.launch_window(s)
 
+            # Receive data from the server
             data = s.recv(1024)
             words = data.decode("utf-8").split()
 
+            # Handle server responses
             if words[0] == "login":
+                # Store the logged-in username and undelivered messages, then go to home
                 logged_in_user = words[1]
                 new_messages = int(words[2])
                 state_data = new_messages
                 current_state = "home"
                 print(f"Logged in as {logged_in_user}")
             elif words[0] == "user_list":
+                # Transition to the user list screen
                 current_state = "user_list"
                 state_data = words[1:]
             elif words[0] == "error":
+                # Display an error message
                 print(f"Error: {' '.join(words[1:])}")
                 messagebox.showerror("Error", f"{' '.join(words[1:])}")
             elif words[0] == "refresh_home":
+                # Refresh home screen with updated data
                 state_data = int(words[1])
                 current_state = "home"
             elif words[0] == "messages":
+                # Update messages screen
                 if len(words) > 1:
                     state_data = [word.split("_") for word in words[1].split("\0")]
                 else:
                     state_data = []
                 current_state = "messages"
             elif words[0] == "logout":
+                # User logged out
                 logged_in_user = None
                 current_state = "signup"
-            else:
+            else: # Unrecognized command from server
                 command = " ".join(words)
                 print(f"No valid command: {command}")
 
 
+# Run the socket connection when the script is executed
 if __name__ == "__main__":
     connect_socket()

@@ -1,3 +1,23 @@
+"""
+Server Implementation for a User Messaging System (JSON Commands)
+
+This script sets up a socket-based server that handles user registration,
+login, searching for user accounts, sending messages, reading messages,
+deleting messages, and deleting user accounts using JSON-based commands.
+The server listens on a specified host and port, accepts new connections,
+and parses incoming JSON data to perform requested operations.
+
+Key functionalities include:
+- Accepting new client connections and managing them with selectors
+- Handling JSON commands for account creation, login, logout, search, etc.
+- Tracking delivered and undelivered messages in a shared data structure
+- Storing and retrieving user/messaging data via database_wrapper
+- Implementing wildcard-based user search
+- Handling message and account deletion requests
+
+Last updated: February 12, 2025
+"""
+
 import socket
 import selectors
 import types
@@ -5,33 +25,21 @@ import database_wrapper
 import fnmatch
 import json
 
+# Create a default selector for managing multiple sockets
 sel = selectors.DefaultSelector()
 
 HOST = "127.0.0.1"
 PORT = 54444
 
-# 1: Creating an account. The user supplies a unique (login) name. If there is already an account with that name, the user is prompted for the password. If the name is not being used, the user is prompted to supply a password. The password should not be passed as plaintext.
-
-# 2: Log in to an account. Using a login name and password, log into an account. An incorrect login or bad user name should display an error. A successful login should display the number of unread messages.
-
-# 3: List accounts, or a subset of accounts that fit a text wildcard pattern. If there are more accounts than can comfortably be displayed, allow iterating through the accounts.
-
-# 4. Send a message to a recipient. If the recipient is logged in, deliver immediately; if not the message should be stored until the recipient logs in and requests to see the message.
-
-# 5: Read messages. If there are undelivered messages, display those messages. The user should be able to specify the number of messages they want delivered at any single time.
-
-# 6. Delete a message or set of messages. Once deleted messages are gone.
-
-# 7. Delete an account. You will need to specify the semantics of deleting an account that contains unread messages.
-
-# ------------------------------------------------------------------------------
-
-users = None
-messages = None
-settings = None
+users = None       # Holds user account information
+messages = None    # Holds delivered and undelivered messages
+settings = None    # Holds additional settings (like a message counter)
 
 
 def accept_wrapper(sock):
+    """
+    Accept a new socket connection and register it with the selector.
+    """
     conn, addr = sock.accept()
     print(f"Accepted connection from {addr}")
     conn.setblocking(False)
@@ -41,17 +49,27 @@ def accept_wrapper(sock):
 
 
 def send_message(sock: socket.socket, command: str, data, message: str):
+    """
+    Send a message back to the client. The message is a string, typically
+    prefixed with a short command name, followed by a JSON payload.
+    """
     sock.send(message.encode("utf-8"))
     data.outb = data.outb[len(command) :]
 
 
 def send_error(sock: socket.socket, command: str, data, error_message: str):
+    """
+    Helper function to send an error message back to the client in JSON format.
+    """
     error_obj = {"error": error_message}
     sock.send(("error " + json.dumps(error_obj)).encode("utf-8"))
     data.outb = data.outb[len(command) :]
 
 
 def get_new_messages(username):
+    """
+    Return the number of undelivered messages for a specific user.
+    """
     num_messages = 0
     for msg_obj in messages["undelivered"]:
         if msg_obj["receiver"] == username:
@@ -60,6 +78,10 @@ def get_new_messages(username):
 
 
 def service_connection(key, mask):
+    """
+    Process I/O for a client connection, reading JSON-based commands and
+    sending corresponding responses or performing required actions.
+    """
     sock = key.fileobj
     data = key.data
     if mask & selectors.EVENT_READ:
@@ -71,10 +93,12 @@ def service_connection(key, mask):
         if recv_data:
             data.outb += recv_data
         else:
+            # Client disconnected
             print(f"Closing connection to {data.addr}")
             sel.unregister(sock)
             sock.close()
 
+            # Mark the corresponding user as logged out
             for user in users:
                 if users[user]["addr"] == data.addr[1]:
                     users[user]["logged_in"] = False
@@ -84,10 +108,18 @@ def service_connection(key, mask):
             database_wrapper.save_database(users, messages, settings)
     if mask & selectors.EVENT_WRITE:
         if data.outb:
+            # Decode the entire payload, split by space for the command,
+            # then parse the rest as JSON
             words = data.outb.decode("utf-8").split(" ")
             command = " ".join(words)
             json_data = json.loads(" ".join(words[1:]))
 
+
+            ###################################################################
+            # Process recognized JSON-based commands.
+            ###################################################################
+
+            # Create command
             if words[0] == "create":
                 username = json_data["username"].strip()
                 password = json_data["password"].strip()
@@ -104,6 +136,7 @@ def service_connection(key, mask):
                     send_error(sock, command, data, "Password cannot be empty")
                     return
 
+                # Create new user in the users dict
                 users[username] = {
                     "password": password,
                     "logged_in": True,
@@ -111,10 +144,11 @@ def service_connection(key, mask):
                 }
 
                 return_dict = {"username": username, "undeliv_messages": 0}
-
+                # Send a response indicating successful login with 0 unread messages
                 send_message(sock, command, data, f"login {json.dumps(return_dict)}")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Login command
             elif words[0] == "login":
                 username = json_data["username"]
                 password = json_data["password"]
@@ -131,11 +165,10 @@ def service_connection(key, mask):
                     send_error(sock, command, data, "Incorrect password")
                     return
 
-                num_messages = 0
-                for msg_obj in messages["undelivered"]:
-                    if msg_obj["receiver"] == username:
-                        num_messages += 1
+                # Count undelivered messages
+                num_messages = get_new_messages(username)
 
+                # Mark as logged in
                 users[username]["logged_in"] = True
                 users[username]["addr"] = data.addr[1]
 
@@ -144,6 +177,7 @@ def service_connection(key, mask):
                 send_message(sock, command, data, f"login {json.dumps(return_dict)}")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Logout command
             elif words[0] == "logout":
                 username = json_data["username"]
 
@@ -151,12 +185,14 @@ def service_connection(key, mask):
                     send_error(sock, command, data, "Username does not exist")
                     return
 
+                # Mark user as logged out
                 users[username]["logged_in"] = False
                 users[username]["addr"] = 0
 
                 send_message(sock, command, data, "logout {}")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Search command
             elif words[0] == "search":
                 pattern = json_data["search"]
                 matched_users = fnmatch.filter(users.keys(), pattern)
@@ -167,17 +203,18 @@ def service_connection(key, mask):
                     sock, command, data, f"user_list {json.dumps(return_dict)}"
                 )
 
+            # Delete account command
             elif words[0] == "delete_acct":
                 acct = json_data["username"]
 
-                # First, delete account from `users`
                 if acct not in users:
                     send_error(sock, command, data, "Account does not exist")
                     return
 
+                # Remove user
                 del users[acct]
 
-                # When deleting an account, delete all messages where the user is sender or receiver
+                # Also remove messages where this user is sender or receiver
                 def del_acct_msgs(msg_obj_lst, acct):
                     msg_obj_lst[:] = [
                         msg_obj
@@ -191,17 +228,17 @@ def service_connection(key, mask):
                 send_message(sock, command, data, "logout {}")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Send message command
             elif words[0] == "send_msg":
-                #! assumptions about the thing
                 sender = json_data["sender"]
                 receiver = json_data["recipient"]
                 message = json_data["message"]
 
-                # if message is sent to a user that does not exist, raise an error
                 if receiver not in users:
                     send_error(sock, command, data, "Receiver does not exist")
                     return
 
+                # Increment the message counter
                 settings["counter"] += 1
                 msg_obj = {
                     "id": settings["counter"],
@@ -210,15 +247,14 @@ def service_connection(key, mask):
                     "message": message,
                 }
 
-                # if message is sent to a logged in user, mark it as delivered
+                # Decide if message is delivered or undelivered based on receiver log-in status
                 if users[receiver]["logged_in"]:
                     messages["delivered"].append(msg_obj)
-                # if message is sent to a user that is logged out, mark it as undelivered
                 else:
                     messages["undelivered"].append(msg_obj)
 
+                # Return the new count of undelivered messages for the sender
                 num_messages = get_new_messages(sender)
-
                 return_dict = {"undeliv_messages": num_messages}
 
                 send_message(
@@ -241,6 +277,7 @@ def service_connection(key, mask):
                     send_error(sock, command, data, "No undelivered messages")
                     return
 
+                # Move messages from undelivered to delivered
                 for ind, msg_obj in enumerate(undelivered_msgs):
                     if num_msg_view == 0:
                         break
@@ -268,8 +305,9 @@ def service_connection(key, mask):
                 send_message(sock, command, data, f"messages {json.dumps(return_dict)}")
                 database_wrapper.save_database(users, messages, settings)
 
+            # Get delivered messages
             elif words[0] == "get_delivered":
-                # user decides on the number of messages to view
+                # User decides on the number of messages to view
                 receiver = json_data["username"]  # i.e. logged in user
                 num_msg_view = json_data["num_messages"]
 
@@ -299,6 +337,7 @@ def service_connection(key, mask):
 
                 send_message(sock, command, data, f"messages {json.dumps(return_dict)}")
 
+        # Refresh home command
             elif words[0] == "refresh_home":
                 # Count up undelivered messages
                 username = json_data["username"]
@@ -311,6 +350,7 @@ def service_connection(key, mask):
                     sock, command, data, f"refresh_home {json.dumps(return_dict)}"
                 )
 
+            # Delete message command
             elif words[0] == "delete_msg":
                 current_user = json_data["current_user"]
                 msgids_to_delete = set(json_data["delete_ids"].split(","))
@@ -333,13 +373,16 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             else:
+                # Command not recognized
                 print(f"No valid command: {command}")
                 data.outb = data.outb[len(command) :]
 
 
 if __name__ == "__main__":
+    # Load data from the database at startup
     users, messages, settings = database_wrapper.load_database()
 
+    # Create and bind the listening socket
     lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     lsock.bind((HOST, PORT))
     lsock.listen()
@@ -351,8 +394,10 @@ if __name__ == "__main__":
             events = sel.select(timeout=None)
             for key, mask in events:
                 if key.data is None:
+                    # Accept new connections
                     accept_wrapper(key.fileobj)
                 else:
+                    # Service existing connections
                     service_connection(key, mask)
     except KeyboardInterrupt:
         print("Caught keyboard interrupt, exiting")

@@ -1,3 +1,20 @@
+"""
+Client-side application for connecting to a server using a socket.
+
+This script establishes a connection to a server at a specified host and port, handling 
+user authentication, navigation between different screens, and processing commands received 
+from the server.
+
+Key Features:
+- Uses JSON-based communication with the server instead of plain text commands.
+- Supports user authentication (signup, login).
+- Manages different UI states: home, messages, user list.
+- Receives server responses as JSON objects, allowing structured data handling.
+- Handles errors and displays messages using Tkinter's messagebox.
+
+Last Updated: February 12, 2025
+"""
+
 import socket
 from tkinter import messagebox
 import screens_json.login

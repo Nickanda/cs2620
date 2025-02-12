@@ -1,12 +1,34 @@
+"""
+Database Management Module
+
+This script manages user, message, and settings databases stored in JSON files. It ensures 
+that required directories exist, handles missing or corrupted files gracefully, and resets 
+specific user fields upon loading.
+
+Key Features:
+- Automatically creates the database directory if it does not exist.
+- Loads JSON-based databases safely, initializing default values when necessary.
+- Resets user login states and address fields on startup to ensure consistency.
+- Supports structured message storage with separate lists for undelivered and delivered messages.
+- Maintains a settings file for application-wide configuration values.
+
+Last Updated: February 12, 2025
+"""
+
 import json
 import os
 
+
+# Define database file paths
 users_database_path = "database/users.json"
 messages_database_path = "database/messages.json"
 settings_database_path = "database/settings.json"
 
 
 def load_database():
+    """
+    Loads user, message, and settings databases from JSON files.
+    """
     users, messages, settings = None, None, None
 
     # Create the database folder if it does not exist
@@ -15,6 +37,10 @@ def load_database():
 
     # Function to load JSON safely
     def safe_load(filepath, default_value):
+        """
+        Safely loads a JSON file. If the file is missing or contains invalid JSON, it 
+        initializes the file with a default value and returns that instead.
+        """
         try:
             with open(filepath, "r") as file:
                 return json.load(file)
@@ -42,6 +68,9 @@ def load_database():
 
 
 def save_database(users, messages, settings):
+    """
+    Saves user, message, and settings data back to JSON files.
+    """
     with open(users_database_path, "w") as users_file:
         json.dump(users, users_file)
     with open(messages_database_path, "w") as messages_file:
