@@ -75,7 +75,7 @@ def launch_window(s: socket.SocketType, user_list: list[str], username: str):
     tk.Button(
         root,
         text="Next 25",
-        command=lambda: pagination(current_index, "nexr"),
+        command=lambda: pagination(current_index, "next"),
         state=tk.DISABLED if current_index + 25 >= len(user_list) else tk.NORMAL,
     ).pack()
 
