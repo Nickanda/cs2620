@@ -9,6 +9,7 @@ import screens.user_list
 HOST = "127.0.0.1"
 PORT = 54400
 
+
 def connect_socket():
     logged_in_user = None
     current_state = "signup"
@@ -24,9 +25,13 @@ def connect_socket():
             elif current_state == "home" and logged_in_user is not None:
                 screens.home.launch_window(s, logged_in_user, state_data)
             elif current_state == "messages" and logged_in_user is not None:
-                screens.messages.launch_window(s, state_data if state_data else [], logged_in_user)
+                screens.messages.launch_window(
+                    s, state_data if state_data else [], logged_in_user
+                )
             elif current_state == "user_list" and logged_in_user is not None:
-                screens.user_list.launch_window(s, state_data if state_data else "", logged_in_user)
+                screens.user_list.launch_window(
+                    s, state_data if state_data else "", logged_in_user
+                )
             else:
                 screens.signup.launch_window(s)
 
@@ -50,16 +55,17 @@ def connect_socket():
                 current_state = "home"
             elif words[0] == "messages":
                 if len(words) > 1:
-                    state_data = [word.split('_') for word in words[1].split("\0")]
+                    state_data = [word.split("_") for word in words[1].split("\0")]
                 else:
                     state_data = []
                 current_state = "messages"
             elif words[0] == "logout":
                 logged_in_user = None
                 current_state = "signup"
-            else: 
+            else:
                 command = " ".join(words)
                 print(f"No valid command: {command}")
+
 
 if __name__ == "__main__":
     connect_socket()

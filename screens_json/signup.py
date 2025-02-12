@@ -5,29 +5,34 @@ import screens_json.login
 import hashlib
 import json
 
-def create_user(s: socket.SocketType, root: tk.Tk, username: tk.StringVar, password: tk.StringVar):
+
+def create_user(
+    s: socket.SocketType, root: tk.Tk, username: tk.StringVar, password: tk.StringVar
+):
     username_str = username.get()
     password_str = password.get()
 
     if username_str == "" or password_str == "":
         messagebox.showerror("Error", "All fields are required")
         return
-    
-    if username_str.isalnum() == False:
+
+    if not username_str.isalnum():
         messagebox.showerror("Error", "Username must be alphanumeric")
         return
 
     message_dict = {
         "username": username_str,
-        "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest()
+        "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest(),
     }
     message = f"create {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
     root.destroy()
 
+
 def launch_login(s: socket.SocketType, root: tk.Tk):
     root.destroy()
     screens_json.login.launch_window(s)
+
 
 def launch_window(s: socket.SocketType):
     # Create main window
@@ -46,9 +51,15 @@ def launch_window(s: socket.SocketType):
     tk.Entry(root, show="*", textvariable=password_var).pack()
 
     # Submit Button
-    tk.Button(root, text="Create User", command=lambda: create_user(s, root, username_var, password_var)).pack()
+    tk.Button(
+        root,
+        text="Create User",
+        command=lambda: create_user(s, root, username_var, password_var),
+    ).pack()
 
     # Login Button
-    tk.Button(root, text="Switch to Login", command=lambda: launch_login(s, root)).pack()
+    tk.Button(
+        root, text="Switch to Login", command=lambda: launch_login(s, root)
+    ).pack()
 
     root.mainloop()

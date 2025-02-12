@@ -10,6 +10,7 @@ import json
 HOST = "127.0.0.1"
 PORT = 54444
 
+
 def connect_socket():
     logged_in_user = None
     current_state = "signup"
@@ -25,15 +26,19 @@ def connect_socket():
             elif current_state == "home" and logged_in_user is not None:
                 screens_json.home.launch_window(s, logged_in_user, state_data)
             elif current_state == "messages" and logged_in_user is not None:
-                screens_json.messages.launch_window(s, state_data if state_data else [], logged_in_user)
+                screens_json.messages.launch_window(
+                    s, state_data if state_data else [], logged_in_user
+                )
             elif current_state == "user_list" and logged_in_user is not None:
-                screens_json.user_list.launch_window(s, state_data if state_data else "", logged_in_user)
+                screens_json.user_list.launch_window(
+                    s, state_data if state_data else "", logged_in_user
+                )
             else:
                 screens_json.signup.launch_window(s)
 
             data = s.recv(1024)
             words = data.decode("utf-8").split()
-            json_data = json.loads(' '.join(words[1:]))
+            json_data = json.loads(" ".join(words[1:]))
 
             if words[0] == "login":
                 logged_in_user = json_data["username"]
@@ -55,9 +60,10 @@ def connect_socket():
             elif words[0] == "logout":
                 logged_in_user = None
                 current_state = "signup"
-            else: 
+            else:
                 command = " ".join(words)
                 print(f"No valid command: {command}")
+
 
 if __name__ == "__main__":
     connect_socket()

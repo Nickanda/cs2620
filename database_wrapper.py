@@ -5,6 +5,7 @@ users_database_path = "database/users.json"
 messages_database_path = "database/messages.json"
 settings_database_path = "database/settings.json"
 
+
 def load_database():
     users, messages, settings = None, None, None
 
@@ -32,17 +33,13 @@ def load_database():
             users[user]["addr"] = 0
 
     # Load messages with safe default
-    messages = safe_load(messages_database_path, {
-        "undelivered": [],
-        "delivered": []
-    })
+    messages = safe_load(messages_database_path, {"undelivered": [], "delivered": []})
 
     # Load settings with safe default
-    settings = safe_load(settings_database_path, {
-        "counter": 0
-    })
+    settings = safe_load(settings_database_path, {"counter": 0})
 
     return users, messages, settings
+
 
 def save_database(users, messages, settings):
     with open(users_database_path, "w") as users_file:
