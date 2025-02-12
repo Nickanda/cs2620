@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import messagebox
-from argon2 import PasswordHasher
 import socket
 import re
 
@@ -46,7 +45,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
 
 def launch_window(s: socket.SocketType, current_user: str):
     """
-    Launches a Tkinter window for deleting messages for current_user. 
+    Launches a Tkinter window for deleting messages for current_user.
     """
     # Create main window
     root = tk.Tk()

@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import messagebox
-from argon2 import PasswordHasher
 import socket
 
 

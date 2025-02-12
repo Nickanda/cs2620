@@ -1,10 +1,6 @@
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
-from argon2 import PasswordHasher
 import socket
-
-# Initialize password hasher
-hasher = PasswordHasher()
 
 
 def get_undelivered_messages(
