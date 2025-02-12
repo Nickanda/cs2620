@@ -163,7 +163,7 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertTrue(any(b"error Incorrect password" in sent for sent in sock.sent))
 
     def test_login_already_logged_in(self):
-        hashed = hashlib.sha256("correct".encode("utf-8")).hexdigest()
+        hashed = hashlib.sha256("secret".encode("utf-8")).hexdigest()
         main.users["testuser"] = {"password": hashed, "logged_in": True, "addr": 2222}
         sock, _ = self.run_service("login testuser secret")
         self.assertTrue(
@@ -171,13 +171,13 @@ class TestMainServiceConnection(unittest.TestCase):
         )
 
     def test_login_success(self):
-        hashed = hashlib.sha256("correct".encode("utf-8")).hexdigest()
+        hashed = hashlib.sha256("secret".encode("utf-8")).hexdigest()
         main.users["testuser"] = {"password": hashed, "logged_in": False, "addr": 0}
         # Add an undelivered message for testuser.
         main.messages["undelivered"].append(
             {"id": 1, "sender": "other", "receiver": "testuser", "message": "Hello"}
         )
-        sock, _ = self.run_service("login testuser secret")
+        sock, _ = self.run_service(f"login testuser {hashed}")
         self.assertTrue(any(b"login testuser 1" in sent for sent in sock.sent))
         self.assertTrue(main.users["testuser"]["logged_in"])
 
@@ -189,7 +189,7 @@ class TestMainServiceConnection(unittest.TestCase):
 
     def test_logout_success(self):
         main.users["testuser"] = {
-            "password": hashlib.sha256("correct".encode("utf-8")).hexdigest(),
+            "password": hashlib.sha256("secret".encode("utf-8")).hexdigest(),
             "logged_in": True,
             "addr": 3333,
         }
@@ -211,7 +211,7 @@ class TestMainServiceConnection(unittest.TestCase):
     def test_delete_acct(self):
         main.users = {
             "testuser": {
-                "password": hashlib.sha256("correct".encode("utf-8")).hexdigest(),
+                "password": hashlib.sha256("secret".encode("utf-8")).hexdigest(),
                 "logged_in": True,
                 "addr": 4444,
             },
@@ -250,7 +250,7 @@ class TestMainServiceConnection(unittest.TestCase):
     def test_send_msg_delivered(self):
         main.users = {
             "sender": {
-                "password": hashlib.sha256("correct".encode("utf-8")).hexdigest(),
+                "password": hashlib.sha256("secret".encode("utf-8")).hexdigest(),
                 "logged_in": True,
                 "addr": 6666,
             },
@@ -264,7 +264,7 @@ class TestMainServiceConnection(unittest.TestCase):
     def test_send_msg_undelivered(self):
         main.users = {
             "sender": {
-                "password": hashlib.sha256("correct".encode("utf-8")).hexdigest(),
+                "password": hashlib.sha256("secret".encode("utf-8")).hexdigest(),
                 "logged_in": True,
                 "addr": 8888,
             },
@@ -366,7 +366,7 @@ class TestMainServiceConnection(unittest.TestCase):
     def test_send_msg_empty_message_body(self):
         main.users = {
             "sender": {
-                "password": hashlib.sha256("correct".encode("utf-8")).hexdigest(),
+                "password": hashlib.sha256("secret".encode("utf-8")).hexdigest(),
                 "logged_in": True,
                 "addr": 9999,
             },
@@ -381,7 +381,7 @@ class TestMainServiceConnection(unittest.TestCase):
         self.assertTrue(any(b"refresh_home" in sent for sent in sock.sent))
 
     def test_login_with_long_password(self):
-        hashed = hashlib.sha256("correct".encode("utf-8")).hexdigest()
+        hashed = hashlib.sha256("secret".encode("utf-8")).hexdigest()
         main.users["longpass"] = {"password": hashed, "logged_in": False, "addr": 0}
         long_wrong_password = "x" * 200
         sock, _ = self.run_service(f"login longpass {long_wrong_password}")
@@ -601,11 +601,12 @@ class TestScreensLogin(unittest.TestCase):
     def test_login_valid(self):
         username_var = tk.StringVar(self.tk_root, value="testuser")
         password_var = tk.StringVar(self.tk_root, value="secret")
+        hashed_password = hashlib.sha256(password_var.get().encode("utf-8")).hexdigest()
         with patch("screens.login.messagebox.showerror") as mock_showerror:
             login_screen.login(self.dummy_socket, self.root, username_var, password_var)
             self.assertTrue(
                 any(
-                    msg.startswith(b"login testuser secret")
+                    msg.startswith(f"login testuser {hashed_password}".encode("utf-8"))
                     for msg in self.dummy_socket.sent
                 )
             )
@@ -970,7 +971,7 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
         # Create user first
         hashed = hashlib.sha256("secret123".encode("utf-8")).hexdigest()
         main.users["username"] = {"password": hashed, "logged_in": False, "addr": 0}
-        sock, _ = self.run_service("login username secret123   ")
+        sock, _ = self.run_service(f"login username {hashed}   ")
         self.assertTrue(
             any(b"login username 0" in s for s in sock.sent),
             "Login should succeed despite trailing spaces.",
@@ -1027,7 +1028,7 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
     def test_send_message_with_special_characters_in_body(self):
         main.users = {
             "sender": {
-                "password": hashlib.sha256("correct".encode("utf-8")).hexdigest(),
+                "password": hashlib.sha256("secret".encode("utf-8")).hexdigest(),
                 "logged_in": True,
                 "addr": 20000,
             },
@@ -1065,8 +1066,8 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
         # but also won't deliver anything. It simply filters on the "receiver" field.
         # Make sure there's no crash or weird error:
         self.assertTrue(
-            any(b"messages " in s for s in sock.sent),
-            "Should respond with an empty 'messages' block.",
+            any(b"error No undelivered messages" in s for s in sock.sent),
+            "Should respond with an error.",
         )
 
     def test_get_delivered_for_nonexistent_user(self):
@@ -1075,8 +1076,8 @@ class TestMainServiceConnectionAdditional(unittest.TestCase):
         # So if none exist, it returns an empty message set.
         sock, _ = self.run_service("get_delivered ghost 2")
         self.assertTrue(
-            any(b"messages " in s for s in sock.sent),
-            "Should respond with an empty 'messages' block.",
+            any(b"error No delivered messages" in s for s in sock.sent),
+            "Should respond with an error.",
         )
 
     def test_create_user_with_numeric_password(self):
@@ -1127,12 +1128,15 @@ class TestScreensAdditional(unittest.TestCase):
     def test_login_spaces_in_password(self):
         username_var = tk.StringVar(self.tk_root, value="userwithspaces")
         password_var = tk.StringVar(self.tk_root, value="secret with spaces")
+        hashed_password = hashlib.sha256(password_var.get().encode("utf-8")).hexdigest()
         with patch("screens.login.messagebox.showerror") as mock_showerror:
             login_screen.login(self.dummy_socket, self.root, username_var, password_var)
             # Expect "login userwithspaces secret with spaces"
             self.assertTrue(
                 any(
-                    msg.startswith(b"login userwithspaces secret with spaces")
+                    msg.startswith(
+                        f"login userwithspaces {hashed_password}".encode("utf-8")
+                    )
                     for msg in self.dummy_socket.sent
                 )
             )

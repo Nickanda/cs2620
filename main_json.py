@@ -93,15 +93,15 @@ def service_connection(key, mask):
                 password = json_data["password"].strip()
 
                 if not username.isalnum():
-                    send_message(sock, command, data, "Username must be alphanumeric")
+                    send_error(sock, command, data, "Username must be alphanumeric")
                     return
 
                 if username in users:
-                    send_message(sock, command, data, "Username already exists")
+                    send_error(sock, command, data, "Username already exists")
                     return
 
                 if password.strip() == "":
-                    send_message(sock, command, data, "Password cannot be empty")
+                    send_error(sock, command, data, "Password cannot be empty")
                     return
 
                 users[username] = {
@@ -120,15 +120,15 @@ def service_connection(key, mask):
                 password = json_data["password"]
 
                 if username not in users:
-                    send_message(sock, command, data, "Username does not exist")
-                    return
-
-                if password != users[username]["password"]:
-                    send_message(sock, command, data, "Incorrect password")
+                    send_error(sock, command, data, "Username does not exist")
                     return
 
                 if users[username]["logged_in"]:
-                    send_message(sock, command, data, "User already logged in")
+                    send_error(sock, command, data, "User already logged in")
+                    return
+
+                if password != users[username]["password"]:
+                    send_error(sock, command, data, "Incorrect password")
                     return
 
                 num_messages = 0
@@ -148,7 +148,7 @@ def service_connection(key, mask):
                 username = json_data["username"]
 
                 if username not in users:
-                    send_message(sock, command, data, "Username does not exist")
+                    send_error(sock, command, data, "Username does not exist")
                     return
 
                 users[username]["logged_in"] = False
@@ -172,7 +172,7 @@ def service_connection(key, mask):
 
                 # First, delete account from `users`
                 if acct not in users:
-                    send_message(sock, command, data, "Account does not exist")
+                    send_error(sock, command, data, "Account does not exist")
                     return
 
                 del users[acct]
@@ -199,7 +199,7 @@ def service_connection(key, mask):
 
                 # if message is sent to a user that does not exist, raise an error
                 if receiver not in users:
-                    send_message(sock, command, data, "Receiver does not exist")
+                    send_error(sock, command, data, "Receiver does not exist")
                     return
 
                 settings["counter"] += 1
@@ -237,6 +237,10 @@ def service_connection(key, mask):
                 to_deliver = []
                 remove_indices = []  # List to store indices to delete later
 
+                if len(undelivered_msgs) == 0 and num_msg_view > 0:
+                    send_error(sock, command, data, "No undelivered messages")
+                    return
+
                 for ind, msg_obj in enumerate(undelivered_msgs):
                     if num_msg_view == 0:
                         break
@@ -270,7 +274,10 @@ def service_connection(key, mask):
                 num_msg_view = json_data["num_messages"]
 
                 delivered_msgs = messages["delivered"]
-                undelivered_msgs = messages["undelivered"]
+
+                if len(delivered_msgs) == 0 and num_msg_view > 0:
+                    send_error(sock, command, data, "No delivered messages")
+                    return
 
                 to_deliver = []
                 for ind, msg_obj in enumerate(delivered_msgs):

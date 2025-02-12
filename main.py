@@ -227,8 +227,6 @@ def service_connection(key, mask):
                     )
                     return
 
-                num_msg_view = int(words[2])
-
                 delivered_msgs = messages["delivered"]
                 undelivered_msgs = messages["undelivered"]
 
@@ -274,10 +272,8 @@ def service_connection(key, mask):
                         "error Number of messages to view must be an integer",
                     )
                     return
-                # num_msg_view = int(words[2])
 
                 delivered_msgs = messages["delivered"]
-                undelivered_msgs = messages["undelivered"]
 
                 if len(delivered_msgs) == 0 and num_msg_view > 0:
                     send_message(sock, command, data, "error No delivered messages")
