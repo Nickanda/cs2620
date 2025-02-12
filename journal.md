@@ -2,13 +2,27 @@
 
 ## Table of Contents
 
-- [February 5, 2025](#february-5-2025)
-- [February 6, 2025](#february-6-2025)
-- [February 7, 2025](#february-7-2025)
-- [February 8, 2025](#february-8-2025)
-- [February 10, 2025](#february-10-2025)
-- [February 11, 2025](#february-11-2025)
-- [Next Steps](#next-steps)
+- [Coding Project Journal](#coding-project-journal)
+  - [Table of Contents](#table-of-contents)
+  - [Development Log](#development-log)
+    - [February 5, 2025](#february-5-2025)
+      - [Progress](#progress)
+      - [Issues Encountered](#issues-encountered)
+    - [February 6, 2025](#february-6-2025)
+      - [Progress](#progress-1)
+    - [February 7, 2025](#february-7-2025)
+      - [Progress](#progress-2)
+      - [To-Do List](#to-do-list)
+    - [February 8, 2025](#february-8-2025)
+      - [Progress](#progress-3)
+      - [To-Do List](#to-do-list-1)
+    - [February 10, 2025](#february-10-2025)
+      - [Progress](#progress-4)
+      - [To-Do List](#to-do-list-2)
+    - [February 11, 2025](#february-11-2025)
+      - [Progress](#progress-5)
+      - [To-Do List](#to-do-list-3)
+    - [Next Steps](#next-steps)
 
 ## Development Log
 
@@ -62,9 +76,33 @@
     ```
   - **Revised Structure:**
     - Usernames now serve as dictionary keys for O(1) lookup efficiency.
-    - Messages are categorized by delivery status, optimizing frontend display logic.
-  - Since usernames are unique, they function as reliable unique identifiers.
+    - Since usernames are unique, they function as reliable unique identifiers.
+    ```json
+    {"username (string)": 
+      {"password": "string", // hashed
+      "logged_in": "boolean", 
+      "addr": "int"}, 
+      },
+    ```
 
+    - Messages are categorized by delivery status, optimizing frontend display logic.
+    ```json
+    {"undelivered": [
+        {
+          "sender": "string", // must be a valid username
+          "receiver": "string", // must be a valid username
+          "message": "string"
+        }
+      ], 
+      "delivered": [
+        {
+          "sender": "string", // must be a valid username
+          "receiver": "string", // must be a valid username
+           "message": "string"
+        }
+      ]
+    }
+    ```
 ---
 
 ### February 7, 2025
@@ -95,6 +133,29 @@
 
 - **Messaging System:**
   - Added UI and functionality for sending and deleting messages.
+  - Added a unique ID to each message to support the comma separated list design
+    - New settings.json containing: ```{"counter": "int"}```, to index message ids
+    - Final messages.json structure:
+    ```json
+    {"undelivered": [
+        {
+          "id": "int", // unique for deletion
+          "sender": "string", // must be a valid username
+          "receiver": "string", // must be a valid username
+          "message": "string"
+        }
+      ], 
+      "delivered": [
+        {
+          "id": "int", // unique for deletion
+          "sender": "string", // must be a valid username
+          "receiver": "string", // must be a valid username
+          "message": "string"
+        }
+      ]
+    }
+    ```
+    - Initially indexed by datetime but realized two users could send exactly the same message at the same time (for instance an empty message)
 
 #### To-Do List
 
@@ -131,6 +192,7 @@
 - **Backend Enhancements:**
   - Implemented a JSON-based structure for the entire application.
   - Switched from Argon2 hashing to the deterministic Scrypt SHA-256 hashing algorithm.
+  - This switch resolved segmentation faults we were running into.
 - **Testing and Bug Fixes:**
   - Continued UI testing to identify and resolve any remaining bugs.
   - Fixed all tests to align with expected application behavior.
