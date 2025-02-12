@@ -6,11 +6,15 @@ import screens.home
 import screens.messages
 import screens.user_list
 
+# Define the server host and port
 HOST = "127.0.0.1"
 PORT = 54400
 
 
 def connect_socket():
+    """
+    Establishes a connection to the server and handles different UI states based on server responses.
+    """
     logged_in_user = None
     current_state = "signup"
     state_data = None
@@ -18,6 +22,7 @@ def connect_socket():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         while True:
+            # Launch the appropriate screen based on the current state
             if current_state == "signup":
                 screens.signup.launch_window(s)
             elif current_state == "login":

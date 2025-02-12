@@ -1,3 +1,15 @@
+"""
+User List Search and Pagination GUI
+
+This script implements a Tkinter-based graphical user interface (GUI) that allows users to:
+- View a paginated list of users (displaying up to 25 users at a time).
+- Perform a search query using alphanumeric characters or '*' as a wildcard.
+- Navigate between pages of users using "Next" and "Previous" buttons.
+- Return to the home screen by sending a refresh request to the server.
+
+Last updated: February 12, 2025
+"""
+
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import scrolledtext

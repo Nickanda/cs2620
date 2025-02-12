@@ -1,3 +1,17 @@
+"""
+User List Search and Pagination GUI (JSON-based)
+
+This script implements a Tkinter-based graphical user interface (GUI) that allows users to:
+- View a paginated list of users (displaying up to 25 users at a time).
+- Perform a search query using alphanumeric characters or '*' as a wildcard.
+- Navigate between pages of users using "Next" and "Previous" buttons.
+- Return to the home screen by sending a refresh request to the server.
+
+This script uses JSON format to structure and send search queries and refresh requests to the server.
+
+Last updated: February 12, 2025
+"""
+
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import scrolledtext
@@ -6,16 +20,22 @@ import json
 
 
 def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
+    """
+    Handles the search functionality by sending the search query to the server.
+    Ensures that input is not empty and contains only alphanumeric characters or '*'.
+    """
     search_str = search.get().strip()
 
     if search_str == "":
         messagebox.showerror("Error", "All fields are required")
         return
 
+    # Validate input
     if not search_str.isalnum() and ("*" not in search_str):
         messagebox.showerror("Error", "Search characters must be alphanumeric or *")
         return
 
+    # Send search query to the server
     message_dict = {"search": search_str}
     message = f"search {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
@@ -23,6 +43,9 @@ def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
 
 
 def pagination(index: int, operation: str):
+    """
+    Handles pagination by adjusting the index for displaying users.
+    """
     if operation == "next":
         index += 25
     elif operation == "prev":
@@ -30,6 +53,9 @@ def pagination(index: int, operation: str):
 
 
 def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
+    """
+    Handles navigation back to the home screen by sending a refresh request to the server.
+    """
     message_dict = {"username": username}
     message = f"refresh_home {json.dumps(message_dict)}".encode("utf-8")
     s.sendall(message)
@@ -37,30 +63,34 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
 
 
 def launch_window(s: socket.SocketType, user_list: list[str], username: str):
-    current_index = 0
+    """
+    Launches the main Tkinter window displaying a paginated user list with search functionality.
+    """
+    current_index = 0 # Initialize pagination index
 
+    # Determine users to display (first 25 users or remaining if less than 25)
     if current_index + 25 >= len(user_list):
         to_display = user_list[current_index:]
     else:
         to_display = user_list[current_index : current_index + 25]
 
-    # Create main window
+    # Create main Tkinter window
     root = tk.Tk()
     root.title("User List")
     root.geometry("400x600")
 
-    # Search Label and Entry
+    # Search bar
     tk.Label(root, text="Enter search pattern (* for all):").pack()
     search_var = tk.StringVar(root)
     tk.Entry(root, textvariable=search_var).pack()
 
-    # List users
+    # Scrolled text area for displaying user list
     text_area = scrolledtext.ScrolledText(root)
     text_area.insert(tk.INSERT, "Users:\n" + "\n".join(to_display))
     text_area.configure(state="disabled")
     text_area.pack()
 
-    # Pagination Buttons
+    # Pagination - Previous button (disabled if at the beginning)
     tk.Button(
         root,
         text="Previous 25",
@@ -68,10 +98,10 @@ def launch_window(s: socket.SocketType, user_list: list[str], username: str):
         state=tk.DISABLED if current_index == 0 else tk.NORMAL,
     ).pack()
 
-    # Submit Button
+    # Submit button
     tk.Button(root, text="Search", command=lambda: search(s, root, search_var)).pack()
 
-    # Pagination Button
+    # Pagination - Next button (disabled if at the end of the list)
     tk.Button(
         root,
         text="Next 25",
@@ -79,9 +109,10 @@ def launch_window(s: socket.SocketType, user_list: list[str], username: str):
         state=tk.DISABLED if current_index + 25 >= len(user_list) else tk.NORMAL,
     ).pack()
 
-    # Back to home
+    # Home button to navigate back
     tk.Button(root, text="Home", command=lambda: launch_home(s, root, username)).pack(
         pady=10
     )
 
+    # Run Tkinter event loop
     root.mainloop()

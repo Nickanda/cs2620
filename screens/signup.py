@@ -1,3 +1,16 @@
+"""
+User Signup GUI with Secure Password Hashing
+
+This script implements a Tkinter-based graphical user interface (GUI) for user account creation.
+Users can enter a username and password to create an account, with the following functionality:
+- Input validation to ensure the username is alphanumeric and fields are not empty.
+- Secure password handling via SHA-256 hashing before transmission.
+- Communication with a server over a socket connection to send the user creation request.
+- Option to switch to the login screen.
+
+Last updated: February 12, 2025
+"""
+
 import tkinter as tk
 from tkinter import messagebox
 import socket

@@ -1,3 +1,19 @@
+"""
+User Home Screen GUI with Messaging and Account Management
+
+This script implements a Tkinter-based graphical user interface (GUI) for the main home screen of a user messaging application.
+From this interface, users can:
+- Read messages, with an indicator for unread messages.
+- Send messages to other users.
+- Delete messages from their inbox.
+- View a list of users in the system.
+- Log out or delete their account.
+
+This screen acts as a central navigation hub for user interactions.
+
+Last updated: February 12, 2025
+"""
+
 import tkinter as tk
 import socket
 import screens.signup

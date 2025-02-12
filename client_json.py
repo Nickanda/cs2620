@@ -7,18 +7,24 @@ import screens_json.messages
 import screens_json.user_list
 import json
 
+# Define the server host and port
 HOST = "127.0.0.1"
 PORT = 54444
 
 
 def connect_socket():
+    """
+    Establishes a connection to the server and handles different UI states based on server responses.
+    """
     logged_in_user = None
-    current_state = "signup"
+    current_state = "signup" # Set initial state
     state_data = None
 
+    # Create a socket and connect to the server
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         while True:
+            # Launch the appropriate UI screen based on the current state
             if current_state == "signup":
                 screens_json.signup.launch_window(s)
             elif current_state == "login":
@@ -34,36 +40,46 @@ def connect_socket():
                     s, state_data if state_data else "", logged_in_user
                 )
             else:
-                screens_json.signup.launch_window(s)
+                screens_json.signup.launch_window(s) # Default to signup screen
 
+            # Receive and decode data from the server
             data = s.recv(1024)
             words = data.decode("utf-8").split()
             json_data = json.loads(" ".join(words[1:]))
 
+            # Handle different server commands
             if words[0] == "login":
+                # Store the logged-in username/undelivered messages and go to home
                 logged_in_user = json_data["username"]
                 state_data = json_data["undeliv_messages"]
                 current_state = "home"
                 print(f"Logged in as {logged_in_user}")
             elif words[0] == "user_list":
+                # Transition to the user list screen
                 current_state = "user_list"
                 state_data = json_data["user_list"]
             elif words[0] == "error":
+                # Display an error message
                 print(f"Error: {' '.join(words[1:])}")
                 messagebox.showerror("Error", f"{' '.join(words[1:])}")
             elif words[0] == "refresh_home":
+                # Refresh the home screen with undelivered messages
                 state_data = json_data["undeliv_messages"]
                 current_state = "home"
             elif words[0] == "messages":
+                # Transition to the messages screen
                 state_data = json_data["messages"]
                 current_state = "messages"
             elif words[0] == "logout":
+                # Log out the user and go back to the signup screen
                 logged_in_user = None
                 current_state = "signup"
             else:
+                # Handle unknown commands
                 command = " ".join(words)
                 print(f"No valid command: {command}")
 
 
+# Run the socket connection when the script is executed
 if __name__ == "__main__":
     connect_socket()

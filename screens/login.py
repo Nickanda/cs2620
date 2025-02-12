@@ -1,3 +1,16 @@
+"""
+User Login GUI with Secure Password Handling
+
+This script implements a Tkinter-based graphical user interface (GUI) for user authentication.
+Users can:
+- Enter their username and password to log in.
+- Validate that the username is alphanumeric and fields are not empty.
+- Securely hash the password using SHA-256 before sending it to the server.
+- Switch to the signup screen if they do not have an account.
+
+Last updated: February 12, 2025
+"""
+
 import tkinter as tk
 from tkinter import messagebox
 import hashlib

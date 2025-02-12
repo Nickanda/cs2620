@@ -1,3 +1,16 @@
+"""
+Message Viewing and Retrieval GUI for User Messaging System
+
+This script implements a Tkinter-based graphical user interface (GUI) for managing and viewing user messages.
+Users can:
+- Request a specified number of undelivered or delivered messages from the server.
+- View messages in a paginated scrolled text area.
+- Navigate through messages using "Next" and "Previous" buttons.
+- Return to the home screen.
+
+Last updated: February 12, 2025
+"""
+
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import socket

@@ -1,3 +1,16 @@
+"""
+Message Sending GUI for User Messaging System
+
+This script implements a Tkinter-based graphical user interface (GUI) for sending messages between users.
+Users can:
+- Enter the recipient's username and a message.
+- Validate that the recipient's username is alphanumeric.
+- Send the message to the server via a socket connection.
+- Navigate back to the home screen.
+
+Last updated: February 12, 2025
+"""
+
 import tkinter as tk
 from tkinter import messagebox
 import socket

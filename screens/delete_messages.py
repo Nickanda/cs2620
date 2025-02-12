@@ -1,3 +1,16 @@
+"""
+Message Deletion GUI for User Messaging System
+
+This script implements a Tkinter-based graphical user interface (GUI) for deleting user messages.
+Users can:
+- Enter message IDs as a comma-separated list to specify which messages to delete.
+- Validate that input consists only of alphanumeric characters and commas.
+- Send a delete request to the server over a socket connection.
+- Navigate back to the home screen.
+
+Last updated: February 12, 2025
+"""
+
 import tkinter as tk
 from tkinter import messagebox
 import socket
