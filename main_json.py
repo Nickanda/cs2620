@@ -53,7 +53,7 @@ def send_message(sock: socket.socket, command: str, data, message: str):
     Send a message back to the client. The message is a string, typically
     prefixed with a short command name, followed by a JSON payload.
     """
-    sock.send(message.encode("utf-8"))
+    sock.send(("0 " + message).encode("utf-8"))
     data.outb = data.outb[len(command) :]
 
 
@@ -62,7 +62,7 @@ def send_error(sock: socket.socket, command: str, data, error_message: str):
     Helper function to send an error message back to the client in JSON format.
     """
     error_obj = {"error": error_message}
-    sock.send(("error " + json.dumps(error_obj)).encode("utf-8"))
+    sock.send(("0 error " + json.dumps(error_obj)).encode("utf-8"))
     data.outb = data.outb[len(command) :]
 
 
@@ -111,15 +111,20 @@ def service_connection(key, mask):
             # Decode the entire payload, split by space for the command,
             # then parse the rest as JSON
             words = data.outb.decode("utf-8").split(" ")
+            version = words[0]
             command = " ".join(words)
-            json_data = json.loads(" ".join(words[1:]))
+            json_data = json.loads(" ".join(words[2:]))
+
+            if version != "0":
+                send_message(sock, command, data, "error Unsupported protocol version")
+                return
 
             ###################################################################
             # Process recognized JSON-based commands.
             ###################################################################
 
             # Create command
-            if words[0] == "create":
+            if words[1] == "create":
                 username = json_data["username"].strip()
                 password = json_data["password"].strip()
 
@@ -148,7 +153,7 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Login command
-            elif words[0] == "login":
+            elif words[1] == "login":
                 username = json_data["username"]
                 password = json_data["password"]
 
@@ -177,7 +182,7 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Logout command
-            elif words[0] == "logout":
+            elif words[1] == "logout":
                 username = json_data["username"]
 
                 if username not in users:
@@ -192,7 +197,7 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Search command
-            elif words[0] == "search":
+            elif words[1] == "search":
                 pattern = json_data["search"]
                 matched_users = fnmatch.filter(users.keys(), pattern)
 
@@ -203,7 +208,7 @@ def service_connection(key, mask):
                 )
 
             # Delete account command
-            elif words[0] == "delete_acct":
+            elif words[1] == "delete_acct":
                 acct = json_data["username"]
 
                 if acct not in users:
@@ -228,7 +233,7 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Send message command
-            elif words[0] == "send_msg":
+            elif words[1] == "send_msg":
                 sender = json_data["sender"]
                 receiver = json_data["recipient"]
                 message = json_data["message"]
@@ -261,7 +266,7 @@ def service_connection(key, mask):
                 )
                 database_wrapper.save_database(users, messages, settings)
 
-            elif words[0] == "get_undelivered":
+            elif words[1] == "get_undelivered":
                 # user decides on the number of messages to view
                 receiver = json_data["username"]  # i.e. logged in user
                 num_msg_view = json_data["num_messages"]
@@ -305,7 +310,7 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Get delivered messages
-            elif words[0] == "get_delivered":
+            elif words[1] == "get_delivered":
                 # User decides on the number of messages to view
                 receiver = json_data["username"]  # i.e. logged in user
                 num_msg_view = json_data["num_messages"]
@@ -337,7 +342,7 @@ def service_connection(key, mask):
                 send_message(sock, command, data, f"messages {json.dumps(return_dict)}")
 
             # Refresh home command
-            elif words[0] == "refresh_home":
+            elif words[1] == "refresh_home":
                 # Count up undelivered messages
                 username = json_data["username"]
 
@@ -350,7 +355,7 @@ def service_connection(key, mask):
                 )
 
             # Delete message command
-            elif words[0] == "delete_msg":
+            elif words[1] == "delete_msg":
                 current_user = json_data["current_user"]
                 msgids_to_delete = set(json_data["delete_ids"].split(","))
                 messages["delivered"] = [

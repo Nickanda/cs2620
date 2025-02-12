@@ -66,7 +66,7 @@ def send_message(sock: socket.socket, command: str, data, message: str):
     Send a message back to the client. The message is encoded into bytes and appended
     to the outb buffer, which will be flushed when the socket is ready to write.
     """
-    sock.send(message.encode("utf-8"))
+    sock.send(("0 " + message).encode("utf-8"))
     # Trim the command portion from the outb buffer
     data.outb = data.outb[len(command) :]
 
@@ -117,17 +117,22 @@ def service_connection(key, mask):
         if data.outb:
             # If we have outgoing data to send
             words = data.outb.decode("utf-8").split(" ")
+            version = words[0]
             command = " ".join(words)
+
+            if version != "0":
+                send_message(sock, command, data, "error Unsupported protocol version")
+                return
 
             ###################################################################
             # Below are various commands processed by the server.
             ###################################################################
 
             # Account creation command
-            if words[0] == "create":
-                username = words[1]
+            if words[1] == "create":
+                username = words[2]
                 username.strip()
-                password = " ".join(words[2:])
+                password = " ".join(words[3:])
 
                 if not username.isalnum():
                     send_message(
@@ -157,9 +162,9 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Login command
-            elif words[0] == "login":
-                username = words[1]
-                password = " ".join(words[2:]).strip()
+            elif words[1] == "login":
+                username = words[2]
+                password = " ".join(words[3:]).strip()
 
                 if username not in users:
                     send_message(sock, command, data, "error Username does not exist")
@@ -190,8 +195,8 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Logout command
-            elif words[0] == "logout":
-                username = words[1]
+            elif words[1] == "logout":
+                username = words[2]
 
                 if username not in users:
                     send_message(sock, command, data, "error Username does not exist")
@@ -205,9 +210,9 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Search command
-            elif words[0] == "search":
+            elif words[1] == "search":
                 # If no pattern is provided, assume wildcard '*'
-                pattern = words[1] if len(words) > 1 else "*"
+                pattern = words[2] if len(words) > 1 else "*"
                 matched_users = fnmatch.filter(users.keys(), pattern)
 
                 # Return a space-separated list of matched users
@@ -216,8 +221,8 @@ def service_connection(key, mask):
                 )
 
             # Delete account command
-            elif words[0] == "delete_acct":
-                acct = words[1]
+            elif words[1] == "delete_acct":
+                acct = words[2]
 
                 if acct not in users:
                     send_message(sock, command, data, "error Account does not exist")
@@ -242,11 +247,11 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Send message command
-            elif words[0] == "send_msg":
+            elif words[1] == "send_msg":
                 # The command format is 'send_msg sender receiver message...'
-                sender = words[1]
-                receiver = words[2]
-                message = " ".join(words[3:])
+                sender = words[2]
+                receiver = words[3]
+                message = " ".join(words[4:])
 
                 if receiver not in users:
                     send_message(sock, command, data, "error Receiver does not exist")
@@ -279,13 +284,13 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Get undelivered messages command
-            elif words[0] == "get_undelivered":
+            elif words[1] == "get_undelivered":
                 # Format: 'get_undelivered receiver num_messages'
-                receiver = words[1]
+                receiver = words[2]
 
                 # Validate that number of messages is an integer
-                if words[2].isdigit():
-                    num_msg_view = int(words[2])
+                if words[3].isdigit():
+                    num_msg_view = int(words[3])
                 else:
                     send_message(
                         sock,
@@ -328,13 +333,13 @@ def service_connection(key, mask):
                 database_wrapper.save_database(users, messages, settings)
 
             # Get delivered messages command
-            elif words[0] == "get_delivered":
+            elif words[1] == "get_delivered":
                 # Format: 'get_delivered receiver num_messages'
-                receiver = words[1]  # logged in user
+                receiver = words[2]  # logged in user
 
                 # Validate that number of messages is an integer
-                if words[2].isdigit():
-                    num_msg_view = int(words[2])
+                if words[3].isdigit():
+                    num_msg_view = int(words[3])
                 else:
                     send_message(
                         sock,
@@ -366,16 +371,16 @@ def service_connection(key, mask):
                 send_message(sock, command, data, ("messages " + "\0".join(to_deliver)))
 
             # Home page command (refresh unread count)
-            elif words[0] == "refresh_home":
-                username = words[1]
+            elif words[1] == "refresh_home":
+                username = words[2]
                 num_messages = get_new_messages(username)
                 send_message(sock, command, data, f"refresh_home {num_messages}")
 
             # Delete message command
-            elif words[0] == "delete_msg":
-                current_user = words[1]
+            elif words[1] == "delete_msg":
+                current_user = words[2]
                 # Format is 'delete_msg current_user msgid1,msgid2,...'
-                msgids_to_delete = set(words[2].split(","))
+                msgids_to_delete = set(words[3].split(","))
 
                 # Filter out messages that match those IDs and belong to current_user
                 messages["delivered"] = [

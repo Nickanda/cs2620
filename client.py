@@ -63,35 +63,38 @@ def connect_socket():
             # Receive data from the server
             data = s.recv(1024)
             words = data.decode("utf-8").split()
+            version = words[0]
 
-            # Handle server responses
-            if words[0] == "login":
+            if version != "0":
+                print("Error: mismatch of API version!")
+                messagebox.showerror("Error", "Mismatch of API version!")
+            elif words[1] == "login":
                 # Store the logged-in username and undelivered messages, then go to home
                 logged_in_user = words[1]
                 new_messages = int(words[2])
                 state_data = new_messages
                 current_state = "home"
                 print(f"Logged in as {logged_in_user}")
-            elif words[0] == "user_list":
+            elif words[1] == "user_list":
                 # Transition to the user list screen
                 current_state = "user_list"
                 state_data = words[1:]
-            elif words[0] == "error":
+            elif words[1] == "error":
                 # Display an error message
                 print(f"Error: {' '.join(words[1:])}")
                 messagebox.showerror("Error", f"{' '.join(words[1:])}")
-            elif words[0] == "refresh_home":
+            elif words[1] == "refresh_home":
                 # Refresh home screen with updated data
                 state_data = int(words[1])
                 current_state = "home"
-            elif words[0] == "messages":
+            elif words[1] == "messages":
                 # Update messages screen
                 if len(words) > 1:
                     state_data = [word.split("_") for word in words[1].split("\0")]
                 else:
                     state_data = []
                 current_state = "messages"
-            elif words[0] == "logout":
+            elif words[1] == "logout":
                 # User logged out
                 logged_in_user = None
                 current_state = "signup"
