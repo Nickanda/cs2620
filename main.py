@@ -42,9 +42,9 @@ PORT = 54400
 # 7. Delete an account. You will need to specify the semantics of deleting an account that contains unread messages.
 # ------------------------------------------------------------------------------
 
-users = None       # Holds user account information, login status, etc.
-messages = None    # Holds delivered and undelivered messages
-settings = None    # Holds additional settings like a message counter
+users = None  # Holds user account information, login status, etc.
+messages = None  # Holds delivered and undelivered messages
+settings = None  # Holds additional settings like a message counter
 
 
 def accept_wrapper(sock):
@@ -63,7 +63,7 @@ def accept_wrapper(sock):
 
 def send_message(sock: socket.socket, command: str, data, message: str):
     """
-    Send a message back to the client. The message is encoded into bytes and appended 
+    Send a message back to the client. The message is encoded into bytes and appended
     to the outb buffer, which will be flushed when the socket is ready to write.
     """
     sock.send(message.encode("utf-8"))
@@ -88,8 +88,8 @@ def service_connection(key, mask):
     and parsing commands, then sending appropriate responses or performing
     specified actions (e.g., user creation, login, message sending).
     """
-    sock = key.fileobj       # The socket object
-    data = key.data          # The data namespace for the socket
+    sock = key.fileobj  # The socket object
+    data = key.data  # The data namespace for the socket
 
     if mask & selectors.EVENT_READ:
         try:
@@ -142,7 +142,7 @@ def service_connection(key, mask):
                 if password.strip() == "":
                     send_message(sock, command, data, "error Password cannot be empty")
                     return
-                
+
                 # Create new user record
                 users[username] = {
                     "password": password,
@@ -172,7 +172,7 @@ def service_connection(key, mask):
                 if password != users[username]["password"]:
                     send_message(sock, command, data, "error Incorrect password")
                     return
-                
+
                 # Calculate the number of undelivered messages for this user
                 num_messages = 0
                 for msg_obj in messages["undelivered"]:
@@ -251,10 +251,10 @@ def service_connection(key, mask):
                 if receiver not in users:
                     send_message(sock, command, data, "error Receiver does not exist")
                     return
-                
+
                 # Replace any null-character placeholders to avoid issues
                 message = message.replace("\0", "NULL")
-                
+
                 # Increment message counter in settings
                 settings["counter"] += 1
                 msg_obj = {
@@ -281,10 +281,10 @@ def service_connection(key, mask):
             # Get undelivered messages command
             elif words[0] == "get_undelivered":
                 # Format: 'get_undelivered receiver num_messages'
-                receiver = words[1]  
+                receiver = words[1]
 
                 # Validate that number of messages is an integer
-                if words[2].isdigit():  
+                if words[2].isdigit():
                     num_msg_view = int(words[2])
                 else:
                     send_message(
@@ -299,7 +299,7 @@ def service_connection(key, mask):
                 undelivered_msgs = messages["undelivered"]
 
                 to_deliver = []
-                remove_indices = []  
+                remove_indices = []
 
                 # If no undelivered messages but the client wants to view some
                 if len(undelivered_msgs) == 0 and num_msg_view > 0:
@@ -316,9 +316,7 @@ def service_connection(key, mask):
                             f"{msg_obj['id']}_{msg_obj['sender']}_{msg_obj['message']}"
                         )
                         delivered_msgs.append(msg_obj)
-                        remove_indices.append(
-                            ind
-                        )  
+                        remove_indices.append(ind)
                         num_msg_view -= 1
 
                 # Remove them from undelivered in reverse index order
@@ -335,7 +333,7 @@ def service_connection(key, mask):
                 receiver = words[1]  # logged in user
 
                 # Validate that number of messages is an integer
-                if words[2].isdigit(): 
+                if words[2].isdigit():
                     num_msg_view = int(words[2])
                 else:
                     send_message(
@@ -403,6 +401,9 @@ def service_connection(key, mask):
 if __name__ == "__main__":
     # Load the user, message, and settings database at startup
     users, messages, settings = database_wrapper.load_database()
+
+    HOST = settings["host"]
+    PORT = settings["port"]
 
     # Create, bind, and listen on the server socket
     lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

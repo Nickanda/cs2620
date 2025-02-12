@@ -31,9 +31,9 @@ sel = selectors.DefaultSelector()
 HOST = "127.0.0.1"
 PORT = 54444
 
-users = None       # Holds user account information
-messages = None    # Holds delivered and undelivered messages
-settings = None    # Holds additional settings (like a message counter)
+users = None  # Holds user account information
+messages = None  # Holds delivered and undelivered messages
+settings = None  # Holds additional settings (like a message counter)
 
 
 def accept_wrapper(sock):
@@ -113,7 +113,6 @@ def service_connection(key, mask):
             words = data.outb.decode("utf-8").split(" ")
             command = " ".join(words)
             json_data = json.loads(" ".join(words[1:]))
-
 
             ###################################################################
             # Process recognized JSON-based commands.
@@ -337,7 +336,7 @@ def service_connection(key, mask):
 
                 send_message(sock, command, data, f"messages {json.dumps(return_dict)}")
 
-        # Refresh home command
+            # Refresh home command
             elif words[0] == "refresh_home":
                 # Count up undelivered messages
                 username = json_data["username"]
@@ -381,6 +380,9 @@ def service_connection(key, mask):
 if __name__ == "__main__":
     # Load data from the database at startup
     users, messages, settings = database_wrapper.load_database()
+
+    HOST = settings["host"]
+    PORT = settings["port"]
 
     # Create and bind the listening socket
     lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1,8 +1,8 @@
 """
 Database Management Module
 
-This script manages user, message, and settings databases stored in JSON files. It ensures 
-that required directories exist, handles missing or corrupted files gracefully, and resets 
+This script manages user, message, and settings databases stored in JSON files. It ensures
+that required directories exist, handles missing or corrupted files gracefully, and resets
 specific user fields upon loading.
 
 Key Features:
@@ -38,7 +38,7 @@ def load_database():
     # Function to load JSON safely
     def safe_load(filepath, default_value):
         """
-        Safely loads a JSON file. If the file is missing or contains invalid JSON, it 
+        Safely loads a JSON file. If the file is missing or contains invalid JSON, it
         initializes the file with a default value and returns that instead.
         """
         try:
@@ -62,7 +62,9 @@ def load_database():
     messages = safe_load(messages_database_path, {"undelivered": [], "delivered": []})
 
     # Load settings with safe default
-    settings = safe_load(settings_database_path, {"counter": 0})
+    settings = safe_load(
+        settings_database_path, {"counter": 0, "host": "127.0.0.1", "port": 54400}
+    )
 
     return users, messages, settings
 
