@@ -189,6 +189,7 @@
 
 - **Documentation:**
   - Added a README file to document the project setup, functionality, and usage.
+  - Added many more comments to files for clarity, including a Last Updated field to inform future users of code.
 - **Backend Enhancements:**
   - Implemented a JSON-based structure for the entire application.
   - Switched from Argon2 hashing to the deterministic Scrypt SHA-256 hashing algorithm.
