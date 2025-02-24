@@ -26,6 +26,7 @@ https://github.com/Nickanda/cs2620
     - [February 11, 2025](#february-11-2025)
       - [Progress](#progress-5)
       - [To-Do List](#to-do-list-3)
+    - [gRPC]()
     - [Next Steps](#next-steps)
     - [JSON vs. Custom Wire Protocol](#json-vs-custom-wire-protocol)
 
@@ -223,6 +224,18 @@ https://github.com/Nickanda/cs2620
 #### To-Do List
 
 - Conduct a final review of tests to ensure correctness and stability.
+
+[Back to Table of Contents](#table-of-contents)
+
+---
+
+### gRPC
+
+#### Thoughts and Ideas
+
+-
+
+#### Progress
 
 [Back to Table of Contents](#table-of-contents)
 
