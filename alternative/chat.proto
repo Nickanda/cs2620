@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package chat;
+
+// Service definition
+service ChatService {
+  // Account management
+  rpc CreateAccount (CreateAccountRequest) returns (LoginResponse);
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc Logout (LogoutRequest) returns (LogoutResponse);
+  rpc DeleteAccount (DeleteAccountRequest) returns (LogoutResponse);
+  
+  // User operations
+  rpc SearchUsers (SearchUsersRequest) returns (UserListResponse);
+  
+  // Message operations
+  rpc SendMessage (SendMessageRequest) returns (HomeRefreshResponse);
+  rpc GetUndeliveredMessages (GetMessagesRequest) returns (MessagesResponse);
+  rpc GetDeliveredMessages (GetMessagesRequest) returns (MessagesResponse);
+  rpc DeleteMessages (DeleteMessagesRequest) returns (HomeRefreshResponse);
+  
+  // Home screen refresh
+  rpc RefreshHome (RefreshHomeRequest) returns (HomeRefreshResponse);
+}
+
+// Request/Response message definitions
+message CreateAccountRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string username = 2;
+  int32 undelivered_count = 3;
+  string error_message = 4;
+}
+
+message LogoutRequest {
+  string username = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message DeleteAccountRequest {
+  string username = 1;
+}
+
+message SearchUsersRequest {
+  string pattern = 1;
+}
+
+message UserListResponse {
+  repeated string usernames = 1;
+  string error_message = 2;
+}
+
+message SendMessageRequest {
+  string sender = 1;
+  string receiver = 2;
+  string message = 3;
+}
+
+message GetMessagesRequest {
+  string username = 1;
+  int32 max_messages = 2;
+}
+
+message Message {
+  int32 id = 1;
+  string sender = 2;
+  string message = 3;
+}
+
+message MessagesResponse {
+  repeated Message messages = 1;
+  string error_message = 2;
+}
+
+message DeleteMessagesRequest {
+  string username = 1;
+  repeated int32 message_ids = 2;
+}
+
+message RefreshHomeRequest {
+  string username = 1;
+}
+
+message HomeRefreshResponse {
+  int32 undelivered_count = 1;
+  string error_message = 2;
+}
