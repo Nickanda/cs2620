@@ -1,62 +1,102 @@
+"""
+Client-side application for connecting to a server using gRPC.
+
+This script establishes a connection to a gRPC server at a specified host and port,
+handling user authentication, navigation between different screens, and processing
+responses returned from the UI screens (which in turn use the gRPC stub).
+
+Key Features:
+- Uses gRPC-based communication with the server instead of socket/JSON-based communication.
+- Supports user authentication (signup, login).
+- Manages different UI states: home, messages, user list.
+- Receives structured responses (as Python dictionaries) from UI screens.
+- Handles errors and displays messages using Tkinter's messagebox.
+
+Last Updated: February 12, 2025
+"""
+
 import grpc
+from tkinter import messagebox
+import screens_rpc.login
+import screens_rpc.signup
+import screens_rpc.home
+import screens_rpc.messages
+import screens_rpc.user_list
+import database_wrapper
 import chat_pb2
 import chat_pb2_grpc
-import database_wrapper
 
-def run():
+
+def connect_rpc():
+    """
+    Establishes a gRPC connection to the server and handles UI state transitions based on user actions.
+    """
+    logged_in_user = None
+    current_state = "signup"  # Start in the signup state
+    state_data = None
+
+    # Load client settings (host/port for gRPC)
     settings = database_wrapper.load_client_database()
-    channel = grpc.insecure_channel(f"{settings['host']}:{settings['port']}")
+    host = settings["host"]
+    port = settings["port"]
+
+    # Create a gRPC channel and stub to call server RPC methods.
+    channel = grpc.insecure_channel(f"{host}:{port}")
     stub = chat_pb2_grpc.ChatServiceStub(channel)
 
-    # 1. Create account for "alice"
-    print("Creating account 'alice'")
-    response = stub.CreateAccount(chat_pb2.CreateAccountRequest(username="alice", password="alicepwd"))
-    print("Response:", response.status, response.message)
+    # Main loop to drive UI transitions.
+    while True:
+        # Launch the appropriate UI screen based on the current state.
+        if current_state == "signup":
+            response = screens_rpc.signup.launch_window(stub)
+        elif current_state == "login":
+            response = screens_rpc.login.launch_window(stub)
+        elif current_state == "home" and logged_in_user is not None:
+            response = screens_rpc.home.launch_window(stub, logged_in_user, state_data)
+        elif current_state == "messages" and logged_in_user is not None:
+            response = screens_rpc.messages.launch_window(
+                stub, state_data if state_data else [], logged_in_user
+            )
+        elif current_state == "user_list" and logged_in_user is not None:
+            response = screens_rpc.user_list.launch_window(
+                stub, state_data if state_data else "", logged_in_user
+            )
+        else:
+            # Fallback: default to signup screen.
+            response = screens_rpc.signup.launch_window(stub)
 
-    # 2. Login as "alice"
-    print("Logging in as 'alice'")
-    response = stub.Login(chat_pb2.LoginRequest(username="alice", password="alicepwd"))
-    print("Response:", response.status, response.message, "Undelivered messages:", response.undelivered_count)
+        # Each screen returns a response dictionary with a "command" field and optionally a "data" field.
+        command = response.get("command")
+        data = response.get("data", {})
+        print(response)
 
-    # 3. Send a message from alice to bob (bob does not exist yet)
-    print("Sending message from 'alice' to 'bob'")
-    response = stub.SendMessage(chat_pb2.SendMessageRequest(sender="alice", receiver="bob", message="Hello Bob!"))
-    print("Response:", response.status, response.message)
+        # Process the response command and update the current state accordingly.
+        if command == "error":
+            messagebox.showerror("Error", data.get("error", "Unknown error"))
+        elif command == "login":
+            # A successful login should return the username and any undelivered messages.
+            logged_in_user = data.get("username")
+            state_data = data.get("undeliv_messages")
+            current_state = "home"
+            print(f"Logged in as {logged_in_user}")
+        elif command == "user_list":
+            current_state = "user_list"
+            state_data = data.get("user_list")
+        elif command == "refresh_home":
+            state_data = data.get("undeliv_messages")
+            current_state = "home"
+        elif command == "messages":
+            state_data = data.get("messages")
+            current_state = "messages"
+        elif command == "logout":
+            logged_in_user = None
+            current_state = "signup"
+        elif command == "login_screen":
+            # This command indicates that the user wants to switch to the login screen.
+            current_state = "login"
+        else:
+            print(f"No valid command received: {command}")
 
-    # 4. Create account and login for "bob"
-    print("Creating account 'bob'")
-    response = stub.CreateAccount(chat_pb2.CreateAccountRequest(username="bob", password="bobpwd"))
-    print("Response:", response.status, response.message)
-    
-    print("Logging in as 'bob'")
-    response = stub.Login(chat_pb2.LoginRequest(username="bob", password="bobpwd"))
-    print("Response:", response.status, response.message, "Undelivered messages:", response.undelivered_count)
-
-    # 5. Get undelivered messages for bob
-    print("Retrieving undelivered messages for 'bob'")
-    response = stub.GetUndelivered(chat_pb2.GetUndeliveredRequest(username="bob", num_messages=10))
-    print("Response:", response.status, response.message)
-    for msg in response.messages:
-        print(f"Message {msg.id} from {msg.sender}: {msg.message}")
-
-    # 6. Search for users starting with 'a'
-    print("Searching users with pattern 'a*'")
-    response = stub.SearchUsers(chat_pb2.SearchUsersRequest(pattern="a*"))
-    print("Response:", response.status, "Users:", response.users)
-
-    # 7. Delete a message (for example, message with id 1 for bob)
-    print("Deleting message id 1 for 'bob'")
-    response = stub.DeleteMessage(chat_pb2.DeleteMessageRequest(username="bob", message_ids=[1]))
-    print("Response:", response.status, response.message)
-
-    # 8. Logout for both users
-    print("Logging out 'alice'")
-    response = stub.Logout(chat_pb2.LogoutRequest(username="alice"))
-    print("Response:", response.status, response.message)
-
-    print("Logging out 'bob'")
-    response = stub.Logout(chat_pb2.LogoutRequest(username="bob"))
-    print("Response:", response.status, response.message)
 
 if __name__ == "__main__":
-    run()
+    connect_rpc()
