@@ -1,4 +1,6 @@
 """
+screens/signup.py
+
 User Signup GUI with Secure Password Hashing
 
 This script implements a Tkinter-based graphical user interface (GUI) for user account creation.

@@ -2,26 +2,31 @@ syntax = "proto3";
 
 package chat;
 
-// Service definition: all RPC methods for the chat application.
+// Service definition
 service ChatService {
-  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
-  rpc Login(LoginRequest) returns (LoginResponse);
-  rpc Logout(LogoutRequest) returns (LogoutResponse);
-  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
-  rpc GetUndelivered(GetUndeliveredRequest) returns (GetUndeliveredResponse);
-  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
-  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
-  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  // Account management
+  rpc CreateAccount (CreateAccountRequest) returns (LoginResponse);
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc Logout (LogoutRequest) returns (LogoutResponse);
+  rpc DeleteAccount (DeleteAccountRequest) returns (LogoutResponse);
+  
+  // User operations
+  rpc SearchUsers (SearchUsersRequest) returns (UserListResponse);
+  
+  // Message operations
+  rpc SendMessage (SendMessageRequest) returns (HomeRefreshResponse);
+  rpc GetUndeliveredMessages (GetMessagesRequest) returns (MessagesResponse);
+  rpc GetDeliveredMessages (GetMessagesRequest) returns (MessagesResponse);
+  rpc DeleteMessages (DeleteMessagesRequest) returns (HomeRefreshResponse);
+  
+  // Home screen refresh
+  rpc RefreshHome (RefreshHomeRequest) returns (HomeRefreshResponse);
 }
 
+// Request/Response message definitions
 message CreateAccountRequest {
   string username = 1;
   string password = 2;
-}
-
-message CreateAccountResponse {
-  string status = 1;
-  string message = 2;
 }
 
 message LoginRequest {
@@ -30,9 +35,10 @@ message LoginRequest {
 }
 
 message LoginResponse {
-  string status = 1;
-  string message = 2;
+  bool success = 1;
+  string username = 2;
   int32 undelivered_count = 3;
+  string error_message = 4;
 }
 
 message LogoutRequest {
@@ -40,8 +46,21 @@ message LogoutRequest {
 }
 
 message LogoutResponse {
-  string status = 1;
-  string message = 2;
+  bool success = 1;
+  string error_message = 2;
+}
+
+message DeleteAccountRequest {
+  string username = 1;
+}
+
+message SearchUsersRequest {
+  string pattern = 1;
+}
+
+message UserListResponse {
+  repeated string usernames = 1;
+  string error_message = 2;
 }
 
 message SendMessageRequest {
@@ -50,14 +69,9 @@ message SendMessageRequest {
   string message = 3;
 }
 
-message SendMessageResponse {
-  string status = 1;
-  string message = 2;
-}
-
-message GetUndeliveredRequest {
+message GetMessagesRequest {
   string username = 1;
-  int32 num_messages = 2;
+  int32 max_messages = 2;
 }
 
 message Message {
@@ -66,36 +80,21 @@ message Message {
   string message = 3;
 }
 
-message GetUndeliveredResponse {
-  string status = 1;
-  string message = 2;
-  repeated Message messages = 3;
+message MessagesResponse {
+  repeated Message messages = 1;
+  string error_message = 2;
 }
 
-message DeleteAccountRequest {
-  string username = 1;
-}
-
-message DeleteAccountResponse {
-  string status = 1;
-  string message = 2;
-}
-
-message SearchUsersRequest {
-  string pattern = 1;
-}
-
-message SearchUsersResponse {
-  string status = 1;
-  repeated string users = 2;
-}
-
-message DeleteMessageRequest {
+message DeleteMessagesRequest {
   string username = 1;
   repeated int32 message_ids = 2;
 }
 
-message DeleteMessageResponse {
-  string status = 1;
-  string message = 2;
+message RefreshHomeRequest {
+  string username = 1;
+}
+
+message HomeRefreshResponse {
+  int32 undelivered_count = 1;
+  string error_message = 2;
 }

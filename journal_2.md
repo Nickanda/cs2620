@@ -54,3 +54,19 @@ Testing Improvements:
 Unit tests can mock the gRPC stubs and directly test the business logic without requiring actual network connections.
 Integration tests are simplified by invoking RPC calls directly and verifying structured responses rather than parsing raw text.
 The strong contract defined by the .proto file reduces ambiguity in what the server expects and returns, thereby reducing the scope for errors during testing.
+
+Does the use of this tool make the application easier or more difficult?
+
+The simulation experiment helps demonstrate that gRPC makes the application easier to develop and maintain. It provides a clear structure for defining services and message types, which leads to more consistent and less error-prone code.
+What does it do to the size of the data passed?
+
+The simulation experiment compares the data size between gRPC and JSON. Generally, gRPC uses less data due to its binary format, which is more compact than JSON.
+How does it change the structure of the client?
+
+The client structure becomes more organized with gRPC. Instead of manually parsing JSON or custom protocols, the client can use generated stub classes to make RPC calls, which provides better type checking and auto-completion.
+How does it change the structure of the server?
+
+The server structure becomes more standardized with gRPC. The service implementation directly matches the service definition in the .proto file, making it easier to ensure all required methods are implemented correctly.
+How does this change the testing of the application?
+
+Testing becomes easier with gRPC because: a. The service definitions provide a clear contract between client and server. b. gRPC provides tools for generating test doubles and mocks. c. The structured nature of gRPC makes it easier to write unit tests for individual service methods.

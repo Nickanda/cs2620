@@ -1,4 +1,6 @@
 """
+screens/send_message.py
+
 Message Sending GUI for User Messaging System
 
 This script implements a Tkinter-based graphical user interface (GUI) for sending messages between users.
