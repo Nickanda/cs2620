@@ -1,5 +1,9 @@
 # Coding Project Journal
 
+## Link to Project
+
+https://github.com/Nickanda/cs2620
+
 ## Table of Contents
 
 - [Coding Project Journal](#coding-project-journal)
