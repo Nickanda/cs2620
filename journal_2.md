@@ -1,3 +1,7 @@
+
+```python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. chat.proto```
+had to run ```pip install grpcio-tools```
+
 Ease of Development
 Using gRPC makes the application easier.
 
