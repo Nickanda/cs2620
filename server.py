@@ -81,6 +81,7 @@ class ChatServiceServicer(chat_pb2_grpc.ChatServiceServicer):
     def SendMessage(self, request, context):
         sender = request.sender.strip()
         receiver = request.receiver.strip()
+        msg_text = request.message.strip()
         if receiver not in users:
             return chat_pb2.SendMessageResponse(
                 status="error", message="Receiver does not exist"
@@ -97,7 +98,8 @@ class ChatServiceServicer(chat_pb2_grpc.ChatServiceServicer):
         else:
             messages["undelivered"].append(msg_obj)
         database_wrapper.save_database(users, messages, settings)
-        return chat_pb2.SendMessageResponse(status="success", message="Message sent.")
+        undeliv_msgs = get_new_messages(sender)
+        return chat_pb2.SendMessageResponse(status="success", undeliv_msgs=undeliv_msgs)
 
     def GetUndelivered(self, request, context):
         username = request.username.strip()
@@ -155,7 +157,6 @@ class ChatServiceServicer(chat_pb2_grpc.ChatServiceServicer):
     def SearchUsers(self, request, context):
         pattern = request.pattern if request.pattern else "*"
         matched = fnmatch.filter(users.keys(), pattern)
-        print(matched)
         return chat_pb2.SearchUsersResponse(status="success", users=matched)
 
     def DeleteMessage(self, request, context):
@@ -171,6 +172,13 @@ class ChatServiceServicer(chat_pb2_grpc.ChatServiceServicer):
         database_wrapper.save_database(users, messages, settings)
         return chat_pb2.DeleteMessageResponse(
             status="success", message=f"Deleted {before_count - after_count} messages."
+        )
+
+    def RefreshHome(self, request, context):
+        username = request.username.strip()
+        undeliv_msgs = get_new_messages(username)
+        return chat_pb2.RefreshHomeResponse(
+            status="success", message="Home refreshed", undeliv_messages=undeliv_msgs
         )
 
 

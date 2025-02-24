@@ -69,8 +69,19 @@ def launch_home(stub, root, current_user):
     """
     Closes the current window and returns a command dict for transitioning to the home screen.
     """
-    root.destroy()
-    return {"command": "refresh_home", "data": {"username": current_user}}
+    # Build and send the RefreshHomeRequest via gRPC
+    request = chat_pb2.RefreshHomeRequest(username=current_user)
+    response = stub.RefreshHome(request)
+
+    if response.status != "success":
+        messagebox.showerror("Error", response.message)
+        return
+
+    # On success, close the window and return a command dict for state transition.
+    return {
+        "command": "refresh_home",
+        "data": {"undeliv_messages": response.undeliv_messages},
+    }
 
 
 def launch_window(stub, initial_messages, current_user):

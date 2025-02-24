@@ -33,7 +33,6 @@ def search(stub, root, search_var):
     # Build and send the SearchUsersRequest via gRPC.
     request = chat_pb2.SearchUsersRequest(pattern=search_str)
     response = stub.SearchUsers(request)
-    print(response)
     if response.status != "success":
         messagebox.showerror("Error", response.message)
         return
@@ -51,8 +50,19 @@ def launch_home(stub, root, username):
     (Optionally, you could invoke a RefreshHome RPC here.)
     This function closes the current window and returns a command dictionary.
     """
-    root.destroy()
-    return {"command": "home", "data": {"username": username}}
+    # Build and send the RefreshHomeRequest via gRPC
+    request = chat_pb2.RefreshHomeRequest(username=username)
+    response = stub.RefreshHome(request)
+
+    if response.status != "success":
+        messagebox.showerror("Error", response.message)
+        return
+
+    # On success, close the window and return a command dict for state transition.
+    return {
+        "command": "refresh_home",
+        "data": {"undeliv_messages": response.undeliv_messages},
+    }
 
 
 def update_display(text_area, user_list, current_index, prev_button, next_button):
@@ -104,7 +114,6 @@ def launch_window(stub, user_list, username):
         nonlocal result
         command = search(stub, root, search_var)
         if command:
-            print(command)
             result = command
             root.destroy()
 
