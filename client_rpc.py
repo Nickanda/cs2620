@@ -68,7 +68,6 @@ def connect_rpc():
         # Each screen returns a response dictionary with a "command" field and optionally a "data" field.
         command = response.get("command")
         data = response.get("data", {})
-        print(response)
 
         # Process the response command and update the current state accordingly.
         if command == "error":

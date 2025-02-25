@@ -45,8 +45,10 @@ def send_message(stub, root, recipient_var, message_widget, current_user):
         return
 
     # On success, close the window and return a command dict for state transition.
-    root.destroy()
-    return {"command": "refresh_home", "data": {"username": current_user}}
+    return {
+        "command": "refresh_home",
+        "data": {"undeliv_messages": response.undeliv_messages},
+    }
 
 
 def launch_home(stub, root, current_user):
@@ -96,12 +98,14 @@ def launch_window(stub, current_user):
         ret = send_message(stub, root, recipient_var, message_widget, current_user)
         if ret:
             result = ret
+            root.destroy()
 
     def on_home():
         nonlocal result
         ret = launch_home(stub, root, current_user)
         if ret:
             result = ret
+            root.destroy()
 
     # Button to send the message
     tk.Button(root, text="Send Message", command=on_send).pack(pady=(5, 5))

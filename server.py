@@ -99,7 +99,9 @@ class ChatServiceServicer(chat_pb2_grpc.ChatServiceServicer):
             messages["undelivered"].append(msg_obj)
         database_wrapper.save_database(users, messages, settings)
         undeliv_msgs = get_new_messages(sender)
-        return chat_pb2.SendMessageResponse(status="success", undeliv_msgs=undeliv_msgs)
+        return chat_pb2.SendMessageResponse(
+            status="success", undeliv_messages=undeliv_msgs
+        )
 
     def GetUndelivered(self, request, context):
         username = request.username.strip()
@@ -129,6 +131,31 @@ class ChatServiceServicer(chat_pb2_grpc.ChatServiceServicer):
                 status="error", message="No undelivered messages", messages=[]
             )
         return chat_pb2.GetUndeliveredResponse(
+            status="success", message="Messages retrieved", messages=delivered_msgs
+        )
+
+    def GetDelivered(self, request, context):
+        username = request.username.strip()
+        num_msgs = request.num_messages
+        delivered_msgs = []
+        count = num_msgs
+        for msg_obj in messages["delivered"]:
+            if count == 0:
+                break
+            if msg_obj["receiver"] == username:
+                delivered_msgs.append(
+                    chat_pb2.Message(
+                        id=msg_obj["id"],
+                        sender=msg_obj["sender"],
+                        message=msg_obj["message"],
+                    )
+                )
+                count -= 1
+        if not delivered_msgs:
+            return chat_pb2.GetDeliveredResponse(
+                status="error", message="No delivered messages", messages=[]
+            )
+        return chat_pb2.GetDeliveredResponse(
             status="success", message="Messages retrieved", messages=delivered_msgs
         )
 
@@ -170,8 +197,11 @@ class ChatServiceServicer(chat_pb2_grpc.ChatServiceServicer):
         ]
         after_count = len(messages["delivered"])
         database_wrapper.save_database(users, messages, settings)
+        undeliv_messages = get_new_messages(username)
         return chat_pb2.DeleteMessageResponse(
-            status="success", message=f"Deleted {before_count - after_count} messages."
+            status="success",
+            message=f"Deleted {before_count - after_count} messages.",
+            undeliv_messages=undeliv_messages,
         )
 
     def RefreshHome(self, request, context):

@@ -53,8 +53,10 @@ def delete_message(stub, root, delete_ids_var, current_user):
         return
 
     # Close the window and return a command to refresh the home screen
-    root.destroy()
-    return {"command": "refresh_home", "data": {"username": current_user}}
+    return {
+        "command": "refresh_home",
+        "data": {"undeliv_messages": response.undeliv_messages},
+    }
 
 
 def launch_home(stub, root, current_user):
@@ -102,12 +104,14 @@ def launch_window(stub, current_user):
         ret = delete_message(stub, root, delete_var, current_user)
         if ret:
             result = ret
+            root.destroy()
 
     def on_home():
         nonlocal result
         ret = launch_home(stub, root, current_user)
         if ret:
             result = ret
+            root.destroy()
 
     # Button to submit delete request
     tk.Button(root, text="Delete Message", command=on_delete).pack(pady=10)

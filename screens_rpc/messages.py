@@ -103,6 +103,7 @@ def launch_window(stub, initial_messages, current_user):
     # Initialize pagination and messages list
     current_index = tk.IntVar(root, 0)
     messages_list = initial_messages[:]  # start with the provided messages
+    result = {}
 
     # Input field for specifying the number of messages to fetch
     tk.Label(root, text="Number of Messages to Get:").pack(pady=(10, 0))
@@ -153,6 +154,13 @@ def launch_window(stub, initial_messages, current_user):
                 text_area, messages_list, current_index, prev_button, next_button
             )
 
+    def on_home():
+        nonlocal result
+        command = launch_home(stub, root, current_user)
+        if command:
+            result = command
+            root.destroy()
+
     # Buttons to fetch messages
     tk.Button(root, text="Get # Undelivered Messages", command=on_get_undelivered).pack(
         pady=(5, 5)
@@ -180,12 +188,10 @@ def launch_window(stub, initial_messages, current_user):
     )
 
     # Home button to return to the main menu
-    tk.Button(
-        root, text="Home", command=lambda: launch_home(stub, root, current_user)
-    ).pack(pady=(10, 10))
+    tk.Button(root, text="Home", command=on_home).pack(pady=(10, 10))
 
     # Initialize display with any initial messages
     update_display(text_area, messages_list, current_index, prev_button, next_button)
 
     root.mainloop()
-    return {"command": "home", "data": {"username": current_user}}
+    return result

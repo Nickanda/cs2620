@@ -40,7 +40,7 @@ def search(stub, root, search_var):
     # Close the current window and return a command dict with the new user list.
     return {
         "command": "user_list",
-        "data": {"user_list": list(response.users), "username": None},
+        "data": {"user_list": list(response.users)},
     }
 
 

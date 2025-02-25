@@ -60,6 +60,11 @@ class ChatServiceStub(object):
                 request_serializer=chat__pb2.GetUndeliveredRequest.SerializeToString,
                 response_deserializer=chat__pb2.GetUndeliveredResponse.FromString,
                 _registered_method=True)
+        self.GetDelivered = channel.unary_unary(
+                '/chat.ChatService/GetDelivered',
+                request_serializer=chat__pb2.GetDeliveredRequest.SerializeToString,
+                response_deserializer=chat__pb2.GetDeliveredResponse.FromString,
+                _registered_method=True)
         self.DeleteAccount = channel.unary_unary(
                 '/chat.ChatService/DeleteAccount',
                 request_serializer=chat__pb2.DeleteAccountRequest.SerializeToString,
@@ -116,6 +121,12 @@ class ChatServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetDelivered(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def DeleteAccount(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -167,6 +178,11 @@ def add_ChatServiceServicer_to_server(servicer, server):
                     servicer.GetUndelivered,
                     request_deserializer=chat__pb2.GetUndeliveredRequest.FromString,
                     response_serializer=chat__pb2.GetUndeliveredResponse.SerializeToString,
+            ),
+            'GetDelivered': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetDelivered,
+                    request_deserializer=chat__pb2.GetDeliveredRequest.FromString,
+                    response_serializer=chat__pb2.GetDeliveredResponse.SerializeToString,
             ),
             'DeleteAccount': grpc.unary_unary_rpc_method_handler(
                     servicer.DeleteAccount,
@@ -325,6 +341,33 @@ class ChatService(object):
             '/chat.ChatService/GetUndelivered',
             chat__pb2.GetUndeliveredRequest.SerializeToString,
             chat__pb2.GetUndeliveredResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetDelivered(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chat.ChatService/GetDelivered',
+            chat__pb2.GetDeliveredRequest.SerializeToString,
+            chat__pb2.GetDeliveredResponse.FromString,
             options,
             channel_credentials,
             insecure,
