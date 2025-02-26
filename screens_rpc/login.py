@@ -15,6 +15,7 @@ from tkinter import messagebox
 import hashlib
 import chat_pb2  # Generated from chat.proto
 import screens_rpc.signup
+import signal
 
 
 def login(stub, root, username_var, password_var):
@@ -66,6 +67,14 @@ def launch_signup(stub, root):
     return screens_rpc.signup.launch_window(stub)
 
 
+def on_close(stub, root: tk.Tk, username: str):
+    """
+    Handles the window close event.
+    """
+    root.destroy()
+    exit()
+
+
 def launch_window(stub):
     """
     Creates and launches the login window.
@@ -73,6 +82,10 @@ def launch_window(stub):
     """
     # Create the main window
     root = tk.Tk()
+    root.protocol("WM_DELETE_WINDOW", lambda: on_close(stub, root))
+    root.bind("<Control-c>", lambda event: on_close(stub, root))
+    signal.signal(signal.SIGTERM, lambda s, f: on_close(stub, root))
+    signal.signal(signal.SIGINT, lambda s, f: on_close(stub, root))
     root.title("User Login")
     root.geometry("300x200")
 

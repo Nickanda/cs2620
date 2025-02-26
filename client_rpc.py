@@ -25,13 +25,34 @@ import screens_rpc.user_list
 import database_wrapper
 import chat_pb2
 import chat_pb2_grpc
+import signal
+
+logged_in_user = None
+stub = None
+
+
+def handle_exit(username: str):
+    """
+    Handles the exit process by sending a logout request to the server.
+    """
+
+    print("HELLO")
+
+    if not stub or not username:
+        print("No user logged in.")
+        exit()
+        return
+
+    request = chat_pb2.LogoutRequest(username=username)
+    response = stub.Logout(request)
+    print(f"Logout successful: {response.message}")
+    exit()
 
 
 def connect_rpc():
     """
     Establishes a gRPC connection to the server and handles UI state transitions based on user actions.
     """
-    logged_in_user = None
     current_state = "signup"  # Start in the signup state
     state_data = None
 

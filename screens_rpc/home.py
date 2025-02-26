@@ -21,6 +21,7 @@ import screens_rpc.user_list
 import screens_rpc.send_message
 import screens_rpc.messages
 import screens_rpc.delete_messages
+import signal
 
 
 def open_read_messages(stub, root, username):
@@ -83,6 +84,17 @@ def delete_account(stub, root, username):
     return {"command": "logout", "data": {}}
 
 
+def on_close(stub, username: str):
+    """
+    Handles the window close event by logging the user out.
+    """
+
+    # Build and send the LogoutRequest via gRPC
+    request = chat_pb2.LogoutRequest(username=username)
+    stub.Logout(request)
+    exit()
+
+
 def launch_window(stub, username, num_messages):
     """
     Creates and displays the main home window for the user.
@@ -91,6 +103,10 @@ def launch_window(stub, username, num_messages):
     Returns a dictionary indicating the next command.
     """
     home_root = tk.Tk()
+    home_root.protocol("WM_DELETE_WINDOW", lambda: on_close(stub, username))
+    home_root.bind("<Control-c>", lambda event: on_close(stub, username))
+    signal.signal(signal.SIGTERM, lambda s, f: on_close(stub, username))
+    signal.signal(signal.SIGINT, lambda s, f: on_close(stub, username))
     home_root.title(f"Home - {username}")
     home_root.geometry("300x250")
 

@@ -14,6 +14,7 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext
 import chat_pb2  # Generated from chat.proto
 import chat_pb2_grpc
+import signal
 
 
 def search(stub, root, search_var):
@@ -80,12 +81,27 @@ def update_display(text_area, user_list, current_index, prev_button, next_button
     next_button.config(state=tk.NORMAL if end < len(user_list) else tk.DISABLED)
 
 
+def on_close(stub, username: str):
+    """
+    Handles the window close event by logging the user out.
+    """
+
+    # Build and send the LogoutRequest via gRPC
+    request = chat_pb2.LogoutRequest(username=username)
+    stub.Logout(request)
+    exit()
+
+
 def launch_window(stub, user_list, username):
     """
     Launches the main Tkinter window displaying a paginated user list with search functionality.
     Returns a command dictionary indicating the next state.
     """
     root = tk.Tk()
+    root.protocol("WM_DELETE_WINDOW", lambda: on_close(stub, username))
+    root.bind("<Control-c>", lambda event: on_close(stub, username))
+    signal.signal(signal.SIGTERM, lambda s, f: on_close(stub, username))
+    signal.signal(signal.SIGINT, lambda s, f: on_close(stub, username))
     root.title("User List")
     root.geometry("400x600")
 

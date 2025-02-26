@@ -13,6 +13,7 @@ import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import chat_pb2  # Generated from chat.proto
 import chat_pb2_grpc
+import signal
 
 
 def update_display(text_area, messages_list, current_index, prev_button, next_button):
@@ -84,6 +85,17 @@ def launch_home(stub, root, current_user):
     }
 
 
+def on_close(stub, username: str):
+    """
+    Handles the window close event by logging the user out.
+    """
+
+    # Build and send the LogoutRequest via gRPC
+    request = chat_pb2.LogoutRequest(username=username)
+    stub.Logout(request)
+    exit()
+
+
 def launch_window(stub, initial_messages, current_user):
     """
     Creates and displays the messages window.
@@ -97,6 +109,10 @@ def launch_window(stub, initial_messages, current_user):
     """
     # Create the main window
     root = tk.Tk()
+    root.protocol("WM_DELETE_WINDOW", lambda: on_close(stub, current_user))
+    root.bind("<Control-c>", lambda event: on_close(stub, current_user))
+    signal.signal(signal.SIGTERM, lambda s, f: on_close(stub, current_user))
+    signal.signal(signal.SIGINT, lambda s, f: on_close(stub, current_user))
     root.title(f"Messages - {current_user}")
     root.geometry("400x600")
 

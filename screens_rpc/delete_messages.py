@@ -14,6 +14,7 @@ from tkinter import messagebox
 import re
 import chat_pb2  # Generated from chat.proto
 import chat_pb2_grpc
+import signal
 
 
 def delete_message(stub, root, delete_ids_var, current_user):
@@ -79,6 +80,17 @@ def launch_home(stub, root, current_user):
     }
 
 
+def on_close(stub, username: str):
+    """
+    Handles the window close event by logging the user out.
+    """
+
+    # Build and send the LogoutRequest via gRPC
+    request = chat_pb2.LogoutRequest(username=username)
+    stub.Logout(request)
+    exit()
+
+
 def launch_window(stub, current_user):
     """
     Launches a Tkinter window for deleting messages for the given user.
@@ -86,6 +98,10 @@ def launch_window(stub, current_user):
     """
     # Create the main window
     root = tk.Tk()
+    root.protocol("WM_DELETE_WINDOW", lambda: on_close(stub, current_user))
+    root.bind("<Control-c>", lambda event: on_close(stub, current_user))
+    signal.signal(signal.SIGTERM, lambda s, f: on_close(stub, current_user))
+    signal.signal(signal.SIGINT, lambda s, f: on_close(stub, current_user))
     root.title(f"Delete Messages - {current_user}")
     root.geometry("600x400")
 

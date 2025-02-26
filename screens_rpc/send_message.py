@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import messagebox
 import chat_pb2  # Generated from chat.proto
 import screens_rpc.home
+import signal
 
 
 def send_message(stub, root, recipient_var, message_widget, current_user):
@@ -71,6 +72,17 @@ def launch_home(stub, root, current_user):
     }
 
 
+def on_close(stub, username: str):
+    """
+    Handles the window close event by logging the user out.
+    """
+
+    # Build and send the LogoutRequest via gRPC
+    request = chat_pb2.LogoutRequest(username=username)
+    stub.Logout(request)
+    exit()
+
+
 def launch_window(stub, current_user):
     """
     Launches the message sending window for the current user.
@@ -78,6 +90,10 @@ def launch_window(stub, current_user):
     """
     # Create the main Tkinter window
     root = tk.Tk()
+    root.protocol("WM_DELETE_WINDOW", lambda: on_close(stub, current_user))
+    root.bind("<Control-c>", lambda event: on_close(stub, current_user))
+    signal.signal(signal.SIGTERM, lambda s, f: on_close(stub, current_user))
+    signal.signal(signal.SIGINT, lambda s, f: on_close(stub, current_user))
     root.title(f"Send Message - {current_user}")
     root.geometry("300x600")
 
