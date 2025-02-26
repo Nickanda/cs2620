@@ -28,6 +28,9 @@ https://github.com/Nickanda/cs2620
       - [To-Do List](#to-do-list-3)
     - [Next Steps](#next-steps)
     - [JSON vs. Custom Wire Protocol](#json-vs-custom-wire-protocol)
+    - [gRPC](#grpc)
+      - [Thoughts and Ideas](#thoughts-and-ideas)
+      - [Answers to Questions](#answers-to-questions)
 
 ## Development Log
 
@@ -265,5 +268,26 @@ For a small team, like the partner project that we used here, I believe that it 
 That being said, there are definitely speed benefits to the CWP format, since we are able to format it in the most efficient way possible, rather than having to rely on a pre-defined format. Thus, I would argue that if the team was looking to have the most efficient implementation without regard to the understanding of the data being transmitted, then the CWP format would be recommended. However, if there is a need for interpretability of the data, then I think that the JSON format would be better.
 
 Of course, the ideal would be to control both the interpretability as well as the efficiency of the data on both the client and server (i.e., RPC) so that we are able to both understand the data but also work with it in the most efficient way possible.
+
+[Back to Table of Contents](#table-of-contents)
+
+---
+
+### gRPC
+
+#### Thoughts and Ideas
+
+- We would definitely need to redo some of our existing infrastructure as it relies on the fact that the socket server was a blocking function as well as Tkinter, the UI.
+- A new proposed model that we will use for the frontend will be to have each UI return the response to a particular command, and to have that window forcibly closed each time we make a call to the server. Thus, we would have a flow where each time we make a request to the server, we can handle the response of that request, and then re-render the next window.
+- The backend integration will be a little more straight forward - for every command that we have, we will make a new related function in the gRPC and define its response and parameters as such.
+- An interesting issue that came up was that we relied on recording the IP and port of the client each time it connected to the server and used that as an identifier to see when someone was "logged in" and when someone was "logged out". To replace this, we decided to add signal events to the front end to detect when the user would (1) close the window or (2) run CTRL + C in the terminal (thus killing the process).
+- This introduced a new can of worms that I didn't realize existed - the Tkinter main loop is ran on a separate thread, so registering any signal events on the main thread would not populate (i.e., registering signal events in the client file would not run because the Tkinter would take over the main thread with a side thread). Thus, the solution to that is to simply have each window incorporate a signal event in it so that every window knows that it must logout the user if either of the detected events to logout were to happen.
+
+#### Answers to Questions
+
+- **Does the use of this tool make the application easier or more difficult?** The tool makes it a lot easier to make the application. Rather than guessing or trying to manually unify the arguments on both the frontend and the backend, we are given a tool that will automatically generate these for us. It eliminates the guesswork and makes the chance that I introduce an error significantly lower than it was previously.
+- **What does it do to the size of the data passed?** It significantly compresses the size of the data by using optimizations from knowing exactly what kind of data it will be accepting at every step. For example, if it knows that the first two parameters will be integers, then it can allocate specifically those bytes of memory for an integer of that given size. When compared to JSON, I would say that the size of the data that is passed is significantly reduced.
+- **How does it change the structure of the client? The server?** The server is now clearly defined in each of the functions that it can and should act on, so I think that the server stays relatively the same. On the other hand, the client had to undergo some changes to conform to how gRPC would handle requests, which we did here (and described above).
+- **How does this change the testing of the application?** Because we implemented integration tests in our code, this addition significantly reduced the amount of tests that we had. Rather than testing to see if we could even connect, by using a relatively stable and well-known software that has itself been tested, we can assume that the gRPC works and that our server and client _will_ connect. Instead, we now can focus on testing specific functionalities within the client and server individually, and create mock requests to test each side.
 
 [Back to Table of Contents](#table-of-contents)

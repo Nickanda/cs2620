@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package chat;
+
+// Service definition: all RPC methods for the chat application.
+service ChatService {
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc GetUndelivered(GetUndeliveredRequest) returns (GetUndeliveredResponse);
+  rpc GetDelivered(GetDeliveredRequest) returns (GetDeliveredResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  rpc RefreshHome(RefreshHomeRequest) returns (RefreshHomeResponse);
+}
+
+message CreateAccountRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message CreateAccountResponse {
+  string status = 1;
+  string message = 2;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string status = 1;
+  string message = 2;
+  int32 undelivered_count = 3;
+}
+
+message LogoutRequest { string username = 1; }
+
+message LogoutResponse {
+  string status = 1;
+  string message = 2;
+}
+
+message SendMessageRequest {
+  string sender = 1;
+  string receiver = 2;
+  string message = 3;
+}
+
+message SendMessageResponse {
+  string status = 1;
+  string message = 2;
+  int32 undeliv_messages = 3;
+}
+
+message GetUndeliveredRequest {
+  string username = 1;
+  int32 num_messages = 2;
+}
+
+message Message {
+  int32 id = 1;
+  string sender = 2;
+  string message = 3;
+}
+
+message GetUndeliveredResponse {
+  string status = 1;
+  string message = 2;
+  repeated Message messages = 3;
+}
+
+message GetDeliveredRequest {
+  string username = 1;
+  int32 num_messages = 2;
+}
+
+message GetDeliveredResponse {
+  string status = 1;
+  string message = 2;
+  repeated Message messages = 3;
+}
+
+message DeleteAccountRequest { string username = 1; }
+
+message DeleteAccountResponse {
+  string status = 1;
+  string message = 2;
+}
+
+message SearchUsersRequest { string pattern = 1; }
+
+message SearchUsersResponse {
+  string status = 1;
+  repeated string users = 2;
+}
+
+message DeleteMessageRequest {
+  string username = 1;
+  repeated int32 message_ids = 2;
+}
+
+message DeleteMessageResponse {
+  string status = 1;
+  string message = 2;
+  int32 undeliv_messages = 3;
+}
+
+message RefreshHomeRequest { string username = 1; }
+
+message RefreshHomeResponse {
+  string status = 1;
+  string message = 2;
+  int32 undeliv_messages = 3;
+}
