@@ -17,15 +17,15 @@ from unittest.mock import patch
 import hashlib
 
 # Import the modules to test.
-import main
+import server
 import database_wrapper
-import screens.delete_messages as delete_messages
-import screens.home as home
-import screens.login as login_screen
-import screens.messages as messages_screen
-import screens.send_message as send_message_screen
-import screens.signup as signup_screen
-import screens.user_list as user_list_screen
+import screens_rpc.delete_messages as delete_messages
+import screens_rpc.home as home
+import screens_rpc.login as login_screen
+import screens_rpc.messages as messages_screen
+import screens_rpc.send_message as send_message_screen
+import screens_rpc.signup as signup_screen
+import screens_rpc.user_list as user_list_screen
 
 ###############################################################################
 # Dummy classes to simulate sockets and Tk windows without real network/UI

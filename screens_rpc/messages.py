@@ -6,7 +6,7 @@ using gRPC to communicate with the server. Users can request a specified number 
 undelivered or delivered messages, view messages in a paginated scrolled text area,
 navigate through messages using "Next" and "Previous" buttons, and return to the home screen.
 
-Last updated: February 12, 2025
+Last updated: February 26, 2025
 """
 
 import tkinter as tk

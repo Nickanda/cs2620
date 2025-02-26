@@ -5,7 +5,7 @@ This script implements a Tkinter-based GUI for sending messages between users us
 Users can enter the recipient's username and a message. The recipient's username is validated,
 the message is sent via the SendMessage RPC, and the interface returns to the home screen.
 
-Last updated: February 12, 2025
+Last updated: February 26, 2025
 """
 
 import tkinter as tk

@@ -9,7 +9,7 @@ using gRPC to communicate with the server. From this interface, users can:
 - View the user list
 - Log out or delete their account
 
-Last updated: February 12, 2025
+Last updated: February 26, 2025
 """
 
 import tkinter as tk

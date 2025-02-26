@@ -7,7 +7,7 @@ This script implements a Tkinter-based GUI that allows users to:
 - Navigate between pages of users using "Next" and "Previous" buttons.
 - Return to the home screen by invoking the appropriate gRPC method (or returning a command).
 
-Last updated: February 12, 2025
+Last updated: February 26, 2025
 """
 
 import tkinter as tk

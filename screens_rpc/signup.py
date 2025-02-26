@@ -6,7 +6,7 @@ Users can enter a username and password; the password is hashed with SHA‑256,
 and the CreateAccount RPC is invoked on the stub. Depending on the response,
 the screen either shows an error or signals the client to switch state.
 
-Last updated: February 12, 2025
+Last updated: February 26, 2025
 """
 
 import tkinter as tk

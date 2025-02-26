@@ -7,7 +7,7 @@ with SHA-256 before being sent via a LoginRequest to the server. On successful l
 the window closes and a command dictionary is returned to update the client state.
 Users can also switch to the signup screen.
 
-Last updated: February 12, 2025
+Last updated: February 26, 2025
 """
 
 import tkinter as tk

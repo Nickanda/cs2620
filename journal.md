@@ -7,6 +7,7 @@ https://github.com/Nickanda/cs2620
 ## Table of Contents
 
 - [Coding Project Journal](#coding-project-journal)
+  - [Link to Project](#link-to-project)
   - [Table of Contents](#table-of-contents)
   - [Development Log](#development-log)
     - [February 5, 2025](#february-5-2025)
@@ -27,7 +28,7 @@ https://github.com/Nickanda/cs2620
       - [Progress](#progress-5)
       - [To-Do List](#to-do-list-3)
     - [Next Steps](#next-steps)
-    - [JSON vs. Custom Wire Protocol](#json-vs-custom-wire-protocol)
+    - [JSON vs. Custom Wire Protocol (CWP)](#json-vs-custom-wire-protocol-cwp)
     - [gRPC](#grpc)
       - [Thoughts and Ideas](#thoughts-and-ideas)
       - [Answers to Questions](#answers-to-questions)
@@ -285,9 +286,13 @@ Of course, the ideal would be to control both the interpretability as well as th
 
 #### Answers to Questions
 
-- **Does the use of this tool make the application easier or more difficult?** The tool makes it a lot easier to make the application. Rather than guessing or trying to manually unify the arguments on both the frontend and the backend, we are given a tool that will automatically generate these for us. It eliminates the guesswork and makes the chance that I introduce an error significantly lower than it was previously.
-- **What does it do to the size of the data passed?** It significantly compresses the size of the data by using optimizations from knowing exactly what kind of data it will be accepting at every step. For example, if it knows that the first two parameters will be integers, then it can allocate specifically those bytes of memory for an integer of that given size. When compared to JSON, I would say that the size of the data that is passed is significantly reduced.
-- **How does it change the structure of the client? The server?** The server is now clearly defined in each of the functions that it can and should act on, so I think that the server stays relatively the same. On the other hand, the client had to undergo some changes to conform to how gRPC would handle requests, which we did here (and described above).
-- **How does this change the testing of the application?** Because we implemented integration tests in our code, this addition significantly reduced the amount of tests that we had. Rather than testing to see if we could even connect, by using a relatively stable and well-known software that has itself been tested, we can assume that the gRPC works and that our server and client _will_ connect. Instead, we now can focus on testing specific functionalities within the client and server individually, and create mock requests to test each side.
+- **Does the use of this tool make the application easier or more difficult?** The tool makes it a lot easier to make the application. Rather than guessing or trying to manually unify the arguments on both the frontend and the backend, we are given a tool that will automatically generate these for us. It eliminates the guesswork and makes the chance that I introduce an error significantly lower than it was previously. gRPC abstracts low‑level socket management, message framing, and protocol parsin, and the use of a .proto file enforces a clear API contract, reducing ambiguity and errors.
+- 
+- **What does it do to the size of the data passed?** It significantly compresses the size of the data by using optimizations from knowing exactly what kind of data it will be accepting at every step. For example, if it knows that the first two parameters will be integers, then it can allocate specifically those bytes of memory for an integer of that given size. When compared to JSON, I would say that the size of the data that is passed is significantly reduced. gRPC uses a binary process rather than text-based ones. 
 
-[Back to Table of Contents](#table-of-contents)
+We ran experiments with concrete inputs like creating a user with username "testuser" and password "password123", running 10 trials to consider the data passed and time it took. We find that gRPC consistently uses less bytes as we would expect and as described above. The time these protocols take does not have consistent patterns.
+![image](experimental_results.png)
+
+- **How does it change the structure of the client? The server?** The server is now clearly defined in each of the functions that it can and should act on, so I think that the server stays relatively the same. On the other hand, the client had to undergo some changes to conform to how gRPC would handle requests, which we did here (and described above). The client shifts from a manual socket connection loop to using a generated stub to make RPC calls. UI components interact with the backend through well-defined methods rather than parsing raw text responses.
+
+- **How does this change the testing of the application?** Because we implemented integration tests in our code, this addition significantly reduced the amount of tests that we had. Rather than testing to see if we could even connect, by using a relatively stable and well-known software that has itself been tested, we can assume that the gRPC works and that our server and client _will_ connect. Instead, we now can focus on testing specific functionalities within the client and server individually, and create mock requests to test each side.
