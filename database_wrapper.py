@@ -109,3 +109,21 @@ def save_database(users, messages, settings):
         json.dump(messages, messages_file)
     with open(settings_database_path, "w") as settings_file:
         json.dump(settings, settings_file)
+
+
+def reset_database():
+    """
+    Resets the database by clearing all user and message data.
+    """
+    users = {}
+    messages = {"undelivered": [], "delivered": []}
+    settings = {
+        "counter": 0,
+        "host": "127.0.0.1",
+        "port": 54400,
+        "host_json": "127.0.0.1",
+        "port_json": 54444,
+    }
+
+    save_database(users, messages, settings)
+    return users, messages, settings
