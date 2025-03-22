@@ -62,44 +62,44 @@ def connect_socket():
 
             # Receive and decode data from the server
             data = s.recv(1024)
-            words = data.decode("utf-8").split()
-            json_data = json.loads(" ".join(words[1:]))
-            version = words[0]
+            json_data = json.loads(data.decode("utf-8"))
+            version = json_data["version"]
+            command = json_data["command"]
+            command_data = json_data["data"]
 
             # Handle different server commands
             if version != "0":
                 print("Error: mismatch of API version!")
                 messagebox.showerror("Error", "Mismatch of API version!")
-            elif words[1] == "login":
+            elif command == "login":
                 # Store the logged-in username/undelivered messages and go to home
-                logged_in_user = json_data["username"]
-                state_data = json_data["undeliv_messages"]
+                logged_in_user = command_data["username"]
+                state_data = command_data["undeliv_messages"]
                 current_state = "home"
                 print(f"Logged in as {logged_in_user}")
-            elif words[1] == "user_list":
+            elif command == "user_list":
                 # Transition to the user list screen
                 current_state = "user_list"
-                state_data = json_data["user_list"]
-            elif words[1] == "error":
+                state_data = command_data["user_list"]
+            elif command == "error":
                 # Handle errors from the server
-                print(f"Error: {json_data['error']}")
-                messagebox.showerror("Error", json_data["error"])
-            elif words[1] == "refresh_home":
+                print(f"Error: {command_data['error']}")
+                messagebox.showerror("Error", command_data["error"])
+            elif command == "refresh_home":
                 # Refresh the home screen with undelivered messages
-                state_data = json_data["undeliv_messages"]
+                state_data = command_data["undeliv_messages"]
                 current_state = "home"
-            elif words[1] == "messages":
+            elif command == "messages":
                 # Transition to the messages screen
-                state_data = json_data["messages"]
+                state_data = command_data["messages"]
                 current_state = "messages"
-            elif words[1] == "logout":
+            elif command == "logout":
                 # Log out the user and go back to the signup screen
                 logged_in_user = None
                 current_state = "signup"
             else:
                 # Handle unknown commands
-                command = " ".join(words)
-                print(f"No valid command: {command}")
+                print(f"No valid command: {json_data}")
 
 
 # Run the socket connection when the script is executed

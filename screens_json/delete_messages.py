@@ -8,6 +8,8 @@ Users can:
 - Send a delete request to the server over a socket connection.
 - Navigate back to the home screen.
 
+This script uses JSON format to structure and send search queries and refresh requests to the server.
+
 Last updated: February 12, 2025
 """
 
@@ -15,6 +17,7 @@ import tkinter as tk
 from tkinter import messagebox
 import socket
 import re
+import json
 
 
 def delete_message(
@@ -37,8 +40,13 @@ def delete_message(
         )
         return
 
-    # Format the delete message request and send it to the server
-    message = f"0 delete_msg {current_user} {delete_ids_str}".encode("utf-8")
+    # Format the delete message request (json) and send it to the server
+    message_dict = {
+        "version": 0,
+        "command": "delete_msg",
+        "data": {"delete_ids": delete_ids_str, "current_user": current_user},
+    }
+    message = json.dumps(message_dict).encode("utf-8")
     s.sendall(message)
 
     # Close the Tkinter window after sending the request
@@ -49,7 +57,12 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     """
     Sends a request to refresh the home screen.
     """
-    message = f"0 refresh_home {username}".encode("utf-8")
+    message_dict = {
+        "version": 0,
+        "command": "refresh_home",
+        "data": {"username": username},
+    }
+    message = json.dumps(message_dict).encode("utf-8")
     s.sendall(message)
 
     # Close the Tkinter window to return to home screen

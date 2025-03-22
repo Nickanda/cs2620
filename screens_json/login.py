@@ -8,6 +8,8 @@ Users can:
 - Securely hash the password using SHA-256 before sending it to the server.
 - Switch to the signup screen if they do not have an account.
 
+This script uses JSON format to structure and send search queries and refresh requests to the server.
+
 Last updated: February 12, 2025
 """
 
@@ -15,7 +17,8 @@ import tkinter as tk
 from tkinter import messagebox
 import hashlib
 import socket
-import screens.signup
+import screens_json.signup
+import json
 
 
 def login(
@@ -38,9 +41,15 @@ def login(
         return
 
     # Hash the password using SHA-256 for security
-    message = f"0 login {username_str} {hashlib.sha256(password_str.encode('utf-8')).hexdigest()}".encode(
-        "utf-8"
-    )
+    message_dict = {
+        "version": 0,
+        "command": "login",
+        "data": {
+            "username": username_str,
+            "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest(),
+        },
+    }
+    message = json.dumps(message_dict).encode("utf-8")
 
     # Send login request to the server
     s.sendall(message)
@@ -54,7 +63,7 @@ def launch_signup(s: socket.SocketType, root: tk.Tk):
     Destroys the current login window and launches the signup window.
     """
     root.destroy()
-    screens.signup.launch_window(s)
+    screens_json.signup.launch_window(s)
 
 
 def launch_window(s: socket.SocketType):
