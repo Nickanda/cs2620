@@ -14,9 +14,10 @@ class FaultTolerantServer(multiprocessing.Process):
         id,
         host,
         port,
-        internal_starting_port=60000,
-        max_ports=10,
         current_starting_port=60000,
+        internal_other_servers=["localhost"],
+        internal_other_ports=[60000],
+        internal_max_ports=[10],
     ):
         super().__init__()
 
@@ -24,14 +25,15 @@ class FaultTolerantServer(multiprocessing.Process):
         self.host = host
         self.port = port
 
-        self.internal_communicator = internal_communications.InternalCommunicator(
-            id,
-            ["localhost"],
-            internal_starting_port,
-            max_ports,
-            "localhost",
-            current_starting_port,
-        ).start()
+        self.internal_communicator_args = {
+            "vm": self,
+            "vm_id": id,
+            "allowed_hosts": internal_other_servers,
+            "starting_ports": internal_other_ports,
+            "max_ports": internal_max_ports,
+            "current_host": host,
+            "current_port": current_starting_port,
+        }
 
         users, messages, settings = database_wrapper.load_database(id)
         self.database = {
@@ -94,11 +96,24 @@ class FaultTolerantServer(multiprocessing.Process):
                 num_messages += 1
         return num_messages
 
-    def create_account(self, sock: socket.socket, unparsed_data):
+    def create_account(self, sock: socket.socket, unparsed_data, internal_change=False):
         _, command_data, data, data_length = self.parse_json_data(unparsed_data)
-
         username = command_data["username"].strip()
         password = command_data["password"].strip()
+
+        if internal_change:
+            self.database.users[username] = {
+                "password": password,
+                "logged_in": True,
+                "addr": None,
+            }
+            database_wrapper.save_database(
+                self.id,
+                self.database.users,
+                self.database.messages,
+                self.database.settings,
+            )
+            return
 
         if not username.isalnum():
             self.send_error(sock, data_length, data, "Username must be alphanumeric")
@@ -116,7 +131,7 @@ class FaultTolerantServer(multiprocessing.Process):
         self.database.users[username] = {
             "password": password,
             "logged_in": True,
-            "addr": data.addr[1],
+            "addr": f"{data.addr[0]}:{data.addr[1]}",
         }
 
         return_dict = {
@@ -129,12 +144,33 @@ class FaultTolerantServer(multiprocessing.Process):
         database_wrapper.save_database(
             self.id, self.database.users, self.database.messages, self.database.settings
         )
+        self.internal_communicator.distribute_update(
+            json.dumps(
+                {
+                    "command": "create",
+                    "data": {
+                        "username": username,
+                        "password": password,
+                    },
+                }
+            )
+        )
 
-    def login(self, sock: socket.socket, unparsed_data):
+    def login(self, sock: socket.socket, unparsed_data, internal_change=False):
         _, command_data, data, data_length = self.parse_json_data(unparsed_data)
 
         username = command_data["username"]
-        password = command_data["password"]
+        password = command_data.get("password")
+
+        if internal_change:
+            self.database.users[username]["logged_in"] = True
+            database_wrapper.save_database(
+                self.id,
+                self.database.users,
+                self.database.messages,
+                self.database.settings,
+            )
+            return
 
         if username not in self.database.users:
             self.send_error(sock, data_length, data, "Username does not exist")
@@ -153,7 +189,7 @@ class FaultTolerantServer(multiprocessing.Process):
 
         # Mark as logged in
         self.database.users[username]["logged_in"] = True
-        self.database.users[username]["addr"] = data.addr[1]
+        self.database.users[username]["addr"] = f"{data.addr[0]}:{data.addr[1]}"
 
         return_dict = {"username": username, "undeliv_messages": num_messages}
 
@@ -161,11 +197,32 @@ class FaultTolerantServer(multiprocessing.Process):
         database_wrapper.save_database(
             self.id, self.database.users, self.database.messages, self.database.settings
         )
+        self.internal_communicator.distribute_update(
+            json.dumps(
+                {
+                    "command": "login",
+                    "data": {
+                        "username": username,
+                        "password": password,
+                    },
+                }
+            )
+        )
 
-    def logout(self, sock: socket.socket, unparsed_data):
+    def logout(self, sock: socket.socket, unparsed_data, internal_change=False):
         _, command_data, data, data_length = self.parse_json_data(unparsed_data)
 
         username = command_data["username"]
+
+        if internal_change:
+            self.database.users[username]["logged_in"] = False
+            database_wrapper.save_database(
+                self.id,
+                self.database.users,
+                self.database.messages,
+                self.database.settings,
+            )
+            return
 
         if username not in self.database.users:
             self.send_error(sock, data_length, data, "Username does not exist")
@@ -173,11 +230,21 @@ class FaultTolerantServer(multiprocessing.Process):
 
         # Mark user as logged out
         self.database.users[username]["logged_in"] = False
-        self.database.users[username]["addr"] = 0
+        self.database.users[username]["addr"] = None
 
         self.send_message(sock, data_length, data, "logout {}")
         database_wrapper.save_database(
             self.id, self.database.users, self.database.messages, self.database.settings
+        )
+        self.internal_communicator.distribute_update(
+            json.dumps(
+                {
+                    "command": "logout",
+                    "data": {
+                        "username": username,
+                    },
+                }
+            )
         )
 
     def search_messages(self, sock: socket.socket, unparsed_data):
@@ -192,10 +259,31 @@ class FaultTolerantServer(multiprocessing.Process):
             sock, data_length, data, f"user_list {json.dumps(return_dict)}"
         )
 
-    def delete_account(self, sock: socket.socket, unparsed_data):
+    def delete_account(self, sock: socket.socket, unparsed_data, internal_change=False):
         _, command_data, data, data_length = self.parse_json_data(unparsed_data)
-
         acct = command_data["username"]
+
+        if internal_change:
+            if acct in self.database.users:
+                del self.database.users[acct]
+
+                def del_acct_msgs(msg_obj_lst, acct):
+                    msg_obj_lst[:] = [
+                        msg_obj
+                        for msg_obj in msg_obj_lst
+                        if msg_obj["sender"] != acct and msg_obj["receiver"] != acct
+                    ]
+
+                del_acct_msgs(self.database.messages["delivered"], acct)
+                del_acct_msgs(self.database.messages["undelivered"], acct)
+
+                database_wrapper.save_database(
+                    self.id,
+                    self.database.users,
+                    self.database.messages,
+                    self.database.settings,
+                )
+            return
 
         if acct not in self.database.users:
             self.send_error(sock, data_length, data, "Account does not exist")
@@ -219,13 +307,47 @@ class FaultTolerantServer(multiprocessing.Process):
         database_wrapper.save_database(
             self.id, self.database.users, self.database.messages, self.database.settings
         )
+        self.internal_communicator.distribute_update(
+            json.dumps(
+                {
+                    "command": "delete_acct",
+                    "data": {
+                        "username": acct,
+                    },
+                }
+            )
+        )
 
-    def deliver_message(self, sock: socket.socket, unparsed_data):
+    def deliver_message(
+        self, sock: socket.socket, unparsed_data, internal_change=False
+    ):
         _, command_data, data, data_length = self.parse_json_data(unparsed_data)
 
         sender = command_data["sender"]
         receiver = command_data["recipient"]
         message = command_data["message"]
+
+        if internal_change:
+            self.database.settings["counter"] += 1
+            msg_obj = {
+                "id": self.database.settings["counter"],
+                "sender": sender,
+                "receiver": receiver,
+                "message": message,
+            }
+
+            if self.database.users[receiver]["logged_in"]:
+                self.database.messages["delivered"].append(msg_obj)
+            else:
+                self.database.messages["undelivered"].append(msg_obj)
+
+            database_wrapper.save_database(
+                self.id,
+                self.database.users,
+                self.database.messages,
+                self.database.settings,
+            )
+            return
 
         if receiver not in self.database.users:
             self.send_error(sock, data_length, data, "Receiver does not exist")
@@ -255,6 +377,18 @@ class FaultTolerantServer(multiprocessing.Process):
         )
         database_wrapper.save_database(
             self.id, self.database.users, self.database.messages, self.database.settings
+        )
+        self.internal_communicator.distribute_update(
+            json.dumps(
+                {
+                    "command": "send_msg",
+                    "data": {
+                        "sender": sender,
+                        "recipient": receiver,
+                        "message": message,
+                    },
+                }
+            )
         )
 
     def get_undelivered_messages(self, sock: socket.socket, unparsed_data):
@@ -302,6 +436,17 @@ class FaultTolerantServer(multiprocessing.Process):
         )
         database_wrapper.save_database(
             self.id, self.database.users, self.database.messages, self.database.settings
+        )
+        self.internal_communicator.distribute_update(
+            json.dumps(
+                {
+                    "command": "get_undelivered",
+                    "data": {
+                        "username": receiver,
+                        "num_messages": num_msg_view,
+                    },
+                }
+            )
         )
 
     def get_delivered_messages(self, sock: socket.socket, unparsed_data):
@@ -353,11 +498,32 @@ class FaultTolerantServer(multiprocessing.Process):
             sock, data_length, data, f"refresh_home {json.dumps(return_dict)}"
         )
 
-    def delete_messages(self, sock: socket.socket, unparsed_data):
+    def delete_messages(
+        self, sock: socket.socket, unparsed_data, internal_change=False
+    ):
         _, command_data, data, data_length = self.parse_json_data(unparsed_data)
 
         current_user = command_data["current_user"]
         msgids_to_delete = set(command_data["delete_ids"].split(","))
+
+        if internal_change:
+            self.database.messages["delivered"] = [
+                msg
+                for msg in self.database.messages["delivered"]
+                if not (
+                    str(msg["id"]) in msgids_to_delete
+                    and msg["receiver"] == current_user
+                )
+            ]
+
+            database_wrapper.save_database(
+                self.id,
+                self.database.users,
+                self.database.messages,
+                self.database.settings,
+            )
+            return
+
         self.database.messages["delivered"] = [
             msg
             for msg in self.database.messages["delivered"]
@@ -375,6 +541,17 @@ class FaultTolerantServer(multiprocessing.Process):
         )
         database_wrapper.save_database(
             self.id, self.database.users, self.database.messages, self.database.settings
+        )
+        self.internal_communicator.distribute_update(
+            json.dumps(
+                {
+                    "command": "delete_msg",
+                    "data": {
+                        "current_user": current_user,
+                        "delete_ids": ",".join(list(msgids_to_delete)),
+                    },
+                }
+            )
         )
 
     def accept_wrapper(self, sock):
@@ -411,9 +588,12 @@ class FaultTolerantServer(multiprocessing.Process):
 
                 # Mark the corresponding user as logged out
                 for user in self.database.users:
-                    if self.database.users[user]["addr"] == data.addr[1]:
+                    if (
+                        self.database.users[user]["addr"]
+                        == f"{data.addr[0]}:{data.addr[1]}"
+                    ):
                         self.database.users[user]["logged_in"] = False
-                        self.database.users[user]["addr"] = 0
+                        self.database.users[user]["addr"] = None
                         break
 
                 database_wrapper.save_database(
@@ -462,6 +642,11 @@ class FaultTolerantServer(multiprocessing.Process):
     def run(self):
         self.sel = selectors.DefaultSelector()
 
+        self.internal_communicator = internal_communications.InternalCommunicator(
+            **self.internal_communicator_args
+        )
+        self.internal_communicator.start()
+
         # Create and bind the listening socket
         lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         lsock.bind((self.host, self.port))
@@ -480,7 +665,7 @@ class FaultTolerantServer(multiprocessing.Process):
                         # Service existing connections
                         self.service_connection(key, mask)
         except KeyboardInterrupt:
-            print("Caught keyboard interrupt, exiting")
-            self.sel.close()
+            print(f"{self.id} : Caught keyboard interrupt, exiting")
         finally:
+            # self.on_exit()
             self.sel.close()
