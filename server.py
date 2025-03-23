@@ -74,14 +74,14 @@ class FaultTolerantServer(multiprocessing.Process):
         data.outb = data.outb[data_length:]
 
     def parse_json_data(self, sock: socket.socket, data):
-        decoded_data = data.decode("utf-8")
+        decoded_data = data.outb.decode("utf-8")
         json_data = json.loads(decoded_data)
         version = json_data["version"]
         command = json_data["command"]
         command_data = json_data["data"]
         data_length = len(decoded_data)
 
-        if version != "0":
+        if version != 0:
             self.send_error(sock, data_length, data, "Unsupported protocol version")
 
         return command, command_data, data, data_length
@@ -91,27 +91,27 @@ class FaultTolerantServer(multiprocessing.Process):
         Return the number of undelivered messages for a specific user.
         """
         num_messages = 0
-        for msg_obj in self.database.messages["undelivered"]:
+        for msg_obj in self.database["messages"]["undelivered"]:
             if msg_obj["receiver"] == username:
                 num_messages += 1
         return num_messages
 
     def create_account(self, sock: socket.socket, unparsed_data, internal_change=False):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
         username = command_data["username"].strip()
         password = command_data["password"].strip()
 
         if internal_change:
-            self.database.users[username] = {
+            self.database["users"][username] = {
                 "password": password,
                 "logged_in": True,
                 "addr": None,
             }
             database_wrapper.save_database(
                 self.id,
-                self.database.users,
-                self.database.messages,
-                self.database.settings,
+                self.database["users"],
+                self.database["messages"],
+                self.database["settings"],
             )
             return
 
@@ -119,7 +119,7 @@ class FaultTolerantServer(multiprocessing.Process):
             self.send_error(sock, data_length, data, "Username must be alphanumeric")
             return
 
-        if username in self.database.users:
+        if username in self.database["users"]:
             self.send_error(sock, data_length, data, "Username already exists")
             return
 
@@ -128,59 +128,60 @@ class FaultTolerantServer(multiprocessing.Process):
             return
 
         # Create new user in the users dict
-        self.database.users[username] = {
+        self.database["users"][username] = {
             "password": password,
             "logged_in": True,
             "addr": f"{data.addr[0]}:{data.addr[1]}",
         }
 
-        return_dict = {
-            "version": 0,
-            "command": "login",
-            "data": {"username": username, "undeliv_messages": 0},
-        }
+        return_dict = {"username": username, "undeliv_messages": 0}
+
         # Send a response indicating successful login with 0 unread messages
-        self.send_message(sock, data_length, data, json.dumps(return_dict))
+        self.send_message(sock, data_length, "login", data, return_dict)
         database_wrapper.save_database(
-            self.id, self.database.users, self.database.messages, self.database.settings
+            self.id,
+            self.database["users"],
+            self.database["messages"],
+            self.database["settings"],
         )
         self.internal_communicator.distribute_update(
-            json.dumps(
-                {
-                    "command": "create",
-                    "data": {
-                        "username": username,
-                        "password": password,
-                    },
-                }
-            )
+            {
+                "command": "create",
+                "data": {
+                    "username": username,
+                    "password": password,
+                },
+            }
         )
 
     def login(self, sock: socket.socket, unparsed_data, internal_change=False):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
 
         username = command_data["username"]
         password = command_data.get("password")
 
         if internal_change:
-            self.database.users[username]["logged_in"] = True
+            addr = command_data.get("addr")
+
+            self.database["users"][username]["logged_in"] = True
+            self.database["users"][username]["addr"] = addr
             database_wrapper.save_database(
                 self.id,
-                self.database.users,
-                self.database.messages,
-                self.database.settings,
+                self.database["users"],
+                self.database["messages"],
+                self.database["settings"],
             )
             return
 
-        if username not in self.database.users:
+        if username not in self.database["users"]:
             self.send_error(sock, data_length, data, "Username does not exist")
             return
 
-        if self.database.users[username]["logged_in"]:
+        if self.database["users"][username]["logged_in"]:
             self.send_error(sock, data_length, data, "User already logged in")
             return
 
-        if password != self.database.users[username]["password"]:
+        if password != self.database["users"][username]["password"]:
             self.send_error(sock, data_length, data, "Incorrect password")
             return
 
@@ -188,84 +189,86 @@ class FaultTolerantServer(multiprocessing.Process):
         num_messages = self.get_new_messages(username)
 
         # Mark as logged in
-        self.database.users[username]["logged_in"] = True
-        self.database.users[username]["addr"] = f"{data.addr[0]}:{data.addr[1]}"
+        self.database["users"][username]["logged_in"] = True
+        self.database["users"][username]["addr"] = f"{data.addr[0]}:{data.addr[1]}"
 
         return_dict = {"username": username, "undeliv_messages": num_messages}
 
-        self.send_message(sock, data_length, data, f"login {json.dumps(return_dict)}")
+        self.send_message(sock, data_length, "login", data, return_dict)
         database_wrapper.save_database(
-            self.id, self.database.users, self.database.messages, self.database.settings
+            self.id,
+            self.database["users"],
+            self.database["messages"],
+            self.database["settings"],
         )
         self.internal_communicator.distribute_update(
-            json.dumps(
-                {
-                    "command": "login",
-                    "data": {
-                        "username": username,
-                        "password": password,
-                    },
-                }
-            )
+            {
+                "command": "login",
+                "data": {
+                    "username": username,
+                    "password": password,
+                    "addr": f"{data.addr[0]}:{data.addr[1]}",
+                },
+            }
         )
 
     def logout(self, sock: socket.socket, unparsed_data, internal_change=False):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
 
         username = command_data["username"]
 
         if internal_change:
-            self.database.users[username]["logged_in"] = False
+            self.database["users"][username]["logged_in"] = False
+            self.database["users"][username]["addr"] = None
             database_wrapper.save_database(
                 self.id,
-                self.database.users,
-                self.database.messages,
-                self.database.settings,
+                self.database["users"],
+                self.database["messages"],
+                self.database["settings"],
             )
             return
 
-        if username not in self.database.users:
+        if username not in self.database["users"]:
             self.send_error(sock, data_length, data, "Username does not exist")
             return
 
         # Mark user as logged out
-        self.database.users[username]["logged_in"] = False
-        self.database.users[username]["addr"] = None
+        self.database["users"][username]["logged_in"] = False
+        self.database["users"][username]["addr"] = None
 
-        self.send_message(sock, data_length, data, "logout {}")
+        self.send_message(sock, data_length, "logout", data, {})
         database_wrapper.save_database(
-            self.id, self.database.users, self.database.messages, self.database.settings
+            self.id,
+            self.database["users"],
+            self.database["messages"],
+            self.database["settings"],
         )
         self.internal_communicator.distribute_update(
-            json.dumps(
-                {
-                    "command": "logout",
-                    "data": {
-                        "username": username,
-                    },
-                }
-            )
+            {
+                "command": "logout",
+                "data": {
+                    "username": username,
+                },
+            }
         )
 
     def search_messages(self, sock: socket.socket, unparsed_data):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
 
         pattern = command_data["search"]
-        matched_users = fnmatch.filter(self.database.users.keys(), pattern)
+        matched_users = fnmatch.filter(self.database["users"].keys(), pattern)
 
         return_dict = {"user_list": matched_users}
 
-        self.send_message(
-            sock, data_length, data, f"user_list {json.dumps(return_dict)}"
-        )
+        self.send_message(sock, data_length, "user_list", data, return_dict)
 
     def delete_account(self, sock: socket.socket, unparsed_data, internal_change=False):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
         acct = command_data["username"]
 
         if internal_change:
-            if acct in self.database.users:
-                del self.database.users[acct]
+            if acct in self.database["users"]:
+                del self.database["users"][acct]
 
                 def del_acct_msgs(msg_obj_lst, acct):
                     msg_obj_lst[:] = [
@@ -274,23 +277,23 @@ class FaultTolerantServer(multiprocessing.Process):
                         if msg_obj["sender"] != acct and msg_obj["receiver"] != acct
                     ]
 
-                del_acct_msgs(self.database.messages["delivered"], acct)
-                del_acct_msgs(self.database.messages["undelivered"], acct)
+                del_acct_msgs(self.database["messages"]["delivered"], acct)
+                del_acct_msgs(self.database["messages"]["undelivered"], acct)
 
                 database_wrapper.save_database(
                     self.id,
-                    self.database.users,
-                    self.database.messages,
-                    self.database.settings,
+                    self.database["users"],
+                    self.database["messages"],
+                    self.database["settings"],
                 )
             return
 
-        if acct not in self.database.users:
+        if acct not in self.database["users"]:
             self.send_error(sock, data_length, data, "Account does not exist")
             return
 
         # Remove user
-        del self.database.users[acct]
+        del self.database["users"][acct]
 
         # Also remove messages where this user is sender or receiver
         def del_acct_msgs(msg_obj_lst, acct):
@@ -300,106 +303,106 @@ class FaultTolerantServer(multiprocessing.Process):
                 if msg_obj["sender"] != acct and msg_obj["receiver"] != acct
             ]
 
-        del_acct_msgs(self.database.messages["delivered"], acct)
-        del_acct_msgs(self.database.messages["undelivered"], acct)
+        del_acct_msgs(self.database["messages"]["delivered"], acct)
+        del_acct_msgs(self.database["messages"]["undelivered"], acct)
 
-        self.send_message(sock, data_length, data, "logout {}")
+        self.send_message(sock, data_length, "logout", data, {})
         database_wrapper.save_database(
-            self.id, self.database.users, self.database.messages, self.database.settings
+            self.id,
+            self.database["users"],
+            self.database["messages"],
+            self.database["settings"],
         )
         self.internal_communicator.distribute_update(
-            json.dumps(
-                {
-                    "command": "delete_acct",
-                    "data": {
-                        "username": acct,
-                    },
-                }
-            )
+            {
+                "command": "delete_acct",
+                "data": {
+                    "username": acct,
+                },
+            }
         )
 
     def deliver_message(
         self, sock: socket.socket, unparsed_data, internal_change=False
     ):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
 
         sender = command_data["sender"]
         receiver = command_data["recipient"]
         message = command_data["message"]
 
         if internal_change:
-            self.database.settings["counter"] += 1
+            self.database["settings"]["counter"] += 1
             msg_obj = {
-                "id": self.database.settings["counter"],
+                "id": self.database["settings"]["counter"],
                 "sender": sender,
                 "receiver": receiver,
                 "message": message,
             }
 
-            if self.database.users[receiver]["logged_in"]:
-                self.database.messages["delivered"].append(msg_obj)
+            if self.database["users"][receiver]["logged_in"]:
+                self.database["messages"]["delivered"].append(msg_obj)
             else:
-                self.database.messages["undelivered"].append(msg_obj)
+                self.database["messages"]["undelivered"].append(msg_obj)
 
             database_wrapper.save_database(
                 self.id,
-                self.database.users,
-                self.database.messages,
-                self.database.settings,
+                self.database["users"],
+                self.database["messages"],
+                self.database["settings"],
             )
             return
 
-        if receiver not in self.database.users:
+        if receiver not in self.database["users"]:
             self.send_error(sock, data_length, data, "Receiver does not exist")
             return
 
         # Increment the message counter
-        self.database.settings["counter"] += 1
+        self.database["settings"]["counter"] += 1
         msg_obj = {
-            "id": self.database.settings["counter"],
+            "id": self.database["settings"]["counter"],
             "sender": sender,
             "receiver": receiver,
             "message": message,
         }
 
         # Decide if message is delivered or undelivered based on receiver log-in status
-        if self.database.users[receiver]["logged_in"]:
-            self.database.messages["delivered"].append(msg_obj)
+        if self.database["users"][receiver]["logged_in"]:
+            self.database["messages"]["delivered"].append(msg_obj)
         else:
-            self.database.messages["undelivered"].append(msg_obj)
+            self.database["messages"]["undelivered"].append(msg_obj)
 
         # Return the new count of undelivered messages for the sender
         num_messages = self.get_new_messages(sender)
         return_dict = {"undeliv_messages": num_messages}
 
-        self.send_message(
-            sock, data_length, data, f"refresh_home {json.dumps(return_dict)}"
-        )
+        self.send_message(sock, data_length, "refresh_home", data, return_dict)
         database_wrapper.save_database(
-            self.id, self.database.users, self.database.messages, self.database.settings
+            self.id,
+            self.database["users"],
+            self.database["messages"],
+            self.database["settings"],
         )
         self.internal_communicator.distribute_update(
-            json.dumps(
-                {
-                    "command": "send_msg",
-                    "data": {
-                        "sender": sender,
-                        "recipient": receiver,
-                        "message": message,
-                    },
-                }
-            )
+            {
+                "command": "send_msg",
+                "data": {
+                    "sender": sender,
+                    "recipient": receiver,
+                    "message": message,
+                },
+            }
         )
 
     def get_undelivered_messages(self, sock: socket.socket, unparsed_data):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
 
         # user decides on the number of messages to view
         receiver = command_data["username"]  # i.e. logged in user
         num_msg_view = command_data["num_messages"]
 
-        delivered_msgs = self.database.messages["delivered"]
-        undelivered_msgs = self.database.messages["undelivered"]
+        delivered_msgs = self.database["messages"]["delivered"]
+        undelivered_msgs = self.database["messages"]["undelivered"]
 
         to_deliver = []
         remove_indices = []  # List to store indices to delete later
@@ -431,32 +434,31 @@ class FaultTolerantServer(multiprocessing.Process):
 
         return_dict = {"messages": to_deliver}
 
-        self.send_message(
-            sock, data_length, data, f"messages {json.dumps(return_dict)}"
-        )
+        self.send_message(sock, data_length, "messages", data, return_dict)
         database_wrapper.save_database(
-            self.id, self.database.users, self.database.messages, self.database.settings
+            self.id,
+            self.database["users"],
+            self.database["messages"],
+            self.database["settings"],
         )
         self.internal_communicator.distribute_update(
-            json.dumps(
-                {
-                    "command": "get_undelivered",
-                    "data": {
-                        "username": receiver,
-                        "num_messages": num_msg_view,
-                    },
-                }
-            )
+            {
+                "command": "get_undelivered",
+                "data": {
+                    "username": receiver,
+                    "num_messages": num_msg_view,
+                },
+            }
         )
 
     def get_delivered_messages(self, sock: socket.socket, unparsed_data):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
 
         # User decides on the number of messages to view
         receiver = command_data["username"]  # i.e. logged in user
         num_msg_view = command_data["num_messages"]
 
-        delivered_msgs = self.database.messages["delivered"]
+        delivered_msgs = self.database["messages"]["delivered"]
 
         if len(delivered_msgs) == 0 and num_msg_view > 0:
             self.send_error(sock, data_length, data, "No delivered messages")
@@ -480,12 +482,10 @@ class FaultTolerantServer(multiprocessing.Process):
 
         return_dict = {"messages": to_deliver}
 
-        self.send_message(
-            sock, data_length, data, f"messages {json.dumps(return_dict)}"
-        )
+        self.send_message(sock, data_length, "messages", data, return_dict)
 
     def refresh_home(self, sock: socket.socket, unparsed_data):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
 
         # Count up undelivered messages
         username = command_data["username"]
@@ -494,22 +494,20 @@ class FaultTolerantServer(multiprocessing.Process):
 
         return_dict = {"undeliv_messages": num_messages}
 
-        self.send_message(
-            sock, data_length, data, f"refresh_home {json.dumps(return_dict)}"
-        )
+        self.send_message(sock, data_length, "refresh_home", data, return_dict)
 
     def delete_messages(
         self, sock: socket.socket, unparsed_data, internal_change=False
     ):
-        _, command_data, data, data_length = self.parse_json_data(unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
 
         current_user = command_data["current_user"]
         msgids_to_delete = set(command_data["delete_ids"].split(","))
 
         if internal_change:
-            self.database.messages["delivered"] = [
+            self.database["messages"]["delivered"] = [
                 msg
-                for msg in self.database.messages["delivered"]
+                for msg in self.database["messages"]["delivered"]
                 if not (
                     str(msg["id"]) in msgids_to_delete
                     and msg["receiver"] == current_user
@@ -518,15 +516,15 @@ class FaultTolerantServer(multiprocessing.Process):
 
             database_wrapper.save_database(
                 self.id,
-                self.database.users,
-                self.database.messages,
-                self.database.settings,
+                self.database["users"],
+                self.database["messages"],
+                self.database["settings"],
             )
             return
 
-        self.database.messages["delivered"] = [
+        self.database["messages"]["delivered"] = [
             msg
-            for msg in self.database.messages["delivered"]
+            for msg in self.database["messages"]["delivered"]
             if not (
                 str(msg["id"]) in msgids_to_delete and msg["receiver"] == current_user
             )
@@ -536,22 +534,21 @@ class FaultTolerantServer(multiprocessing.Process):
 
         return_dict = {"undeliv_messages": num_messages}
 
-        self.send_message(
-            sock, data_length, data, f"refresh_home {json.dumps(return_dict)}"
-        )
+        self.send_message(sock, data_length, "refresh_home", data, return_dict)
         database_wrapper.save_database(
-            self.id, self.database.users, self.database.messages, self.database.settings
+            self.id,
+            self.database["users"],
+            self.database["messages"],
+            self.database["settings"],
         )
         self.internal_communicator.distribute_update(
-            json.dumps(
-                {
-                    "command": "delete_msg",
-                    "data": {
-                        "current_user": current_user,
-                        "delete_ids": ",".join(list(msgids_to_delete)),
-                    },
-                }
-            )
+            {
+                "command": "delete_msg",
+                "data": {
+                    "current_user": current_user,
+                    "delete_ids": ",".join(list(msgids_to_delete)),
+                },
+            }
         )
 
     def accept_wrapper(self, sock):
@@ -587,53 +584,60 @@ class FaultTolerantServer(multiprocessing.Process):
                 sock.close()
 
                 # Mark the corresponding user as logged out
-                for user in self.database.users:
+                for user in self.database["users"]:
                     if (
-                        self.database.users[user]["addr"]
+                        self.database["users"][user]["addr"]
                         == f"{data.addr[0]}:{data.addr[1]}"
                     ):
-                        self.database.users[user]["logged_in"] = False
-                        self.database.users[user]["addr"] = None
+                        self.database["users"][user]["logged_in"] = False
+                        self.database["users"][user]["addr"] = None
+                        self.internal_communicator.distribute_update(
+                            {
+                                "command": "logout",
+                                "data": {
+                                    "username": user,
+                                },
+                            }
+                        )
                         break
 
                 database_wrapper.save_database(
                     self.id,
-                    self.database.users,
-                    self.database.messages,
-                    self.database.settings,
+                    self.database["users"],
+                    self.database["messages"],
+                    self.database["settings"],
                 )
         if mask & selectors.EVENT_WRITE:
             if data.outb:
                 # Decode the entire payload, split by space for the command,
                 # then parse the rest as JSON
                 received_data = data.outb.decode("utf-8")
-
-                command, _, _, _ = self.parse_json_data(received_data)
+                command, _, _, _ = self.parse_json_data(sock, data)
 
                 ###################################################################
                 # Process recognized JSON-based commands.
                 ###################################################################
 
                 if command == "create":
-                    self.create_account(sock, received_data)
+                    self.create_account(sock, data)
                 elif command == "login":
-                    self.login(sock, received_data)
+                    self.login(sock, data)
                 elif command == "logout":
-                    self.logout(sock, received_data)
+                    self.logout(sock, data)
                 elif command == "search":
-                    self.search_messages(sock, received_data)
+                    self.search_messages(sock, data)
                 elif command == "delete_acct":
-                    self.delete_account(sock, received_data)
+                    self.delete_account(sock, data)
                 elif command == "send_msg":
-                    self.deliver_message(sock, received_data)
+                    self.deliver_message(sock, data)
                 elif command == "get_undelivered":
-                    self.get_undelivered_messages(sock, received_data)
+                    self.get_undelivered_messages(sock, data)
                 elif command == "get_delivered":
-                    self.get_delivered_messages(sock, received_data)
+                    self.get_delivered_messages(sock, data)
                 elif command == "refresh_home":
-                    self.refresh_home(sock, received_data)
+                    self.refresh_home(sock, data)
                 elif command == "delete_msg":
-                    self.delete_messages(sock, received_data)
+                    self.delete_messages(sock, data)
                 else:
                     # Command not recognized
                     print(f"No valid command: {received_data}")

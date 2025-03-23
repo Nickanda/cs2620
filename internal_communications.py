@@ -107,6 +107,7 @@ class InternalCommunicator(threading.Thread):
                 "version": 0,
                 "command": "distribute_update",
                 "data": {
+                    "version": 0,
                     "command": update["command"],
                     "data": update["data"],
                 },
@@ -139,7 +140,7 @@ class InternalCommunicator(threading.Thread):
                                     )
                             elif msg["command"] == "distribute_updae":
                                 command = msg["data"]["command"]
-                                received_data = msg["data"]["data"]
+                                received_data = msg["data"]
 
                                 if command == "create":
                                     self.vm.create_account(conn, received_data, True)

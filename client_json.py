@@ -63,12 +63,12 @@ def connect_socket(hosts, ports, num_ports):
     state_data = None
 
     # Iterate over hosts and ports to establish a connection
-    for host in hosts:
-        for port in ports:
+    for i, host in enumerate(hosts):
+        for port in range(num_ports[i]):
             try:
                 # Create a socket and connect to the server
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.connect((host, port))
+                    s.connect((host, ports[i] + port))
                     while True:
                         # Launch the appropriate UI screen based on the current state
                         if current_state == "signup":
@@ -102,7 +102,7 @@ def connect_socket(hosts, ports, num_ports):
                         command_data = json_data["data"]
 
                         # Handle different server commands
-                        if version != "0":
+                        if version != 0:
                             print("Error: mismatch of API version!")
                             messagebox.showerror("Error", "Mismatch of API version!")
                         elif command == "login":
@@ -136,6 +136,7 @@ def connect_socket(hosts, ports, num_ports):
                             print(f"No valid command: {json_data}")
             except Exception as e:
                 print(f"Failed to connect to {host}:{port} - {e}")
+                continue
 
 
 # Run the socket connection when the script is executed
