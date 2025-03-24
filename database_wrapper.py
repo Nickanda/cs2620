@@ -52,6 +52,11 @@ def load_database(vm_id):
     # Load users with safe default
     users = safe_load(users_database_path(vm_id), {})
 
+    for user in users:
+        if users[user]["logged_in"]:
+            users[user]["logged_in"] = False
+            users[user]["addr"] = None
+
     # Load messages with safe default
     messages = safe_load(
         messages_database_path(vm_id), {"undelivered": [], "delivered": []}

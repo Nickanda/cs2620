@@ -52,7 +52,7 @@ def create_user(
         },
     }
     message = json.dumps(message_dict).encode("utf-8")
-    s.sendall(message)
+    s().sendall(message)
 
     # Close the signup window upon successful user creation request
     root.destroy()
@@ -66,7 +66,7 @@ def launch_login(s: socket.SocketType, root: tk.Tk):
     screens_json.login.launch_window(s)
 
 
-def launch_window(s: socket.SocketType):
+def launch_window(s):
     """
     Initializes and displays the user signup window.
     Provides input fields for username and password, and buttons for signup and login.

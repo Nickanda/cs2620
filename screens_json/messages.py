@@ -40,7 +40,7 @@ def get_undelivered_messages(
     }
 
     # Send the request to fetch undelivered messages
-    s.sendall(json.dumps(message_dict).encode("utf-8"))
+    s().sendall(json.dumps(message_dict).encode("utf-8"))
 
     # Close the current Tkinter window
     root.destroy()
@@ -67,7 +67,7 @@ def get_delivered_messages(
     }
 
     # Send the request to fetch delivered messages
-    s.sendall(json.dumps(message_dict).encode("utf-8"))
+    s().sendall(json.dumps(message_dict).encode("utf-8"))
 
     # Close the current Tkinter window
     root.destroy()
@@ -93,7 +93,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
         "data": {"username": username},
     }
     message = json.dumps(message_dict).encode("utf-8")
-    s.sendall(message)
+    s().sendall(message)
     root.destroy()
 
 
@@ -119,7 +119,7 @@ def update_display(text_area, user_list, current_index, prev_button, next_button
     next_button.config(state=tk.NORMAL if end < len(user_list) else tk.DISABLED)
 
 
-def launch_window(s: socket.SocketType, messages: list[str], current_user: str):
+def launch_window(s, messages: list[str], current_user: str):
     """
     Creates the main window for displaying messages with options to fetch delivered/undelivered messages
     and navigate through paginated messages.

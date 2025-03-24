@@ -54,6 +54,42 @@ def parse_arguments():
     return parser.parse_args()
 
 
+connected_socket = None
+
+
+def get_socket(hosts, ports, num_ports):
+    """
+    Establishes a connection to the server by iterating over hosts and ports.
+    """
+
+    def to_return():
+        global connected_socket
+        try:
+            if connected_socket is not None:
+                data = connected_socket.recv(16, socket.MSG_DONTWAIT | socket.MSG_PEEK)
+                if len(data) == 0:
+                    connected_socket = None
+                    print("Connection closed")
+                else:
+                    print("Reusing existing connection")
+                    return connected_socket
+        except Exception:
+            connected_socket = None
+
+        for i, host in enumerate(hosts):
+            for port in range(num_ports[i]):
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.connect((host, ports[i] + port))
+                    connected_socket = s
+                    return s
+                except Exception:
+                    continue
+        return None
+
+    return to_return
+
+
 def connect_socket(hosts, ports, num_ports):
     """
     Establishes a connection to the server and handles different UI states based on server responses.
@@ -63,80 +99,80 @@ def connect_socket(hosts, ports, num_ports):
     state_data = None
 
     # Iterate over hosts and ports to establish a connection
-    for i, host in enumerate(hosts):
-        for port in range(num_ports[i]):
-            try:
-                # Create a socket and connect to the server
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.connect((host, ports[i] + port))
-                    while True:
-                        # Launch the appropriate UI screen based on the current state
-                        if current_state == "signup":
-                            screens_json.signup.launch_window(s)
-                        elif current_state == "login":
-                            screens_json.login.launch_window(s)
-                        elif current_state == "home" and logged_in_user is not None:
-                            screens_json.home.launch_window(
-                                s, logged_in_user, state_data
-                            )
-                        elif current_state == "messages" and logged_in_user is not None:
-                            screens_json.messages.launch_window(
-                                s, state_data if state_data else [], logged_in_user
-                            )
-                        elif (
-                            current_state == "user_list" and logged_in_user is not None
-                        ):
-                            screens_json.user_list.launch_window(
-                                s, state_data if state_data else "", logged_in_user
-                            )
-                        else:
-                            screens_json.signup.launch_window(
-                                s
-                            )  # Default to signup screen
+    try:
+        # Create a socket and connect to the server
+        while True:
+            s = get_socket(hosts, ports, num_ports)
+            # Launch the appropriate UI screen based on the current state
+            if current_state == "signup":
+                screens_json.signup.launch_window(s)
+            elif current_state == "login":
+                screens_json.login.launch_window(s)
+            elif current_state == "home" and logged_in_user is not None:
+                screens_json.home.launch_window(s, logged_in_user, state_data)
+            elif current_state == "messages" and logged_in_user is not None:
+                screens_json.messages.launch_window(
+                    s, state_data if state_data else [], logged_in_user
+                )
+            elif current_state == "user_list" and logged_in_user is not None:
+                screens_json.user_list.launch_window(
+                    s, state_data if state_data else "", logged_in_user
+                )
+            else:
+                screens_json.signup.launch_window(
+                    s,
+                )  # Default to signup screen
 
-                        # Receive and decode data from the server
-                        data = s.recv(1024)
-                        json_data = json.loads(data.decode("utf-8"))
-                        version = json_data["version"]
-                        command = json_data["command"]
-                        command_data = json_data["data"]
+            # Receive and decode data from the server
+            s = get_socket(hosts, ports, num_ports)()
+            if s is None:
+                print("Error: Could not connect to server!")
+                messagebox.showerror("Error", "Could not connect to server!")
+                break
 
-                        # Handle different server commands
-                        if version != 0:
-                            print("Error: mismatch of API version!")
-                            messagebox.showerror("Error", "Mismatch of API version!")
-                        elif command == "login":
-                            # Store the logged-in username/undelivered messages and go to home
-                            logged_in_user = command_data["username"]
-                            state_data = command_data["undeliv_messages"]
-                            current_state = "home"
-                            print(f"Logged in as {logged_in_user}")
-                        elif command == "user_list":
-                            # Transition to the user list screen
-                            current_state = "user_list"
-                            state_data = command_data["user_list"]
-                        elif command == "error":
-                            # Handle errors from the server
-                            print(f"Error: {command_data['error']}")
-                            messagebox.showerror("Error", command_data["error"])
-                        elif command == "refresh_home":
-                            # Refresh the home screen with undelivered messages
-                            state_data = command_data["undeliv_messages"]
-                            current_state = "home"
-                        elif command == "messages":
-                            # Transition to the messages screen
-                            state_data = command_data["messages"]
-                            current_state = "messages"
-                        elif command == "logout":
-                            # Log out the user and go back to the signup screen
-                            logged_in_user = None
-                            current_state = "signup"
-                        else:
-                            # Handle unknown commands
-                            print(f"No valid command: {json_data}")
-            except Exception as e:
-                print(f"Failed to connect to {host}:{port} - {e}")
-                continue
+            data = s.recv(1024)
+            json_data = json.loads(data.decode("utf-8"))
+            version = json_data["version"]
+            command = json_data["command"]
+            command_data = json_data["data"]
+
+            # Handle different server commands
+            if version != 0:
+                print("Error: mismatch of API version!")
+                messagebox.showerror("Error", "Mismatch of API version!")
+            elif command == "login":
+                # Store the logged-in username/undelivered messages and go to home
+                logged_in_user = command_data["username"]
+                state_data = command_data["undeliv_messages"]
+                current_state = "home"
+                print(f"Logged in as {logged_in_user}")
+            elif command == "user_list":
+                # Transition to the user list screen
+                current_state = "user_list"
+                state_data = command_data["user_list"]
+            elif command == "error":
+                # Handle errors from the server
+                print(f"Error: {command_data['error']}")
+                messagebox.showerror("Error", command_data["error"])
+            elif command == "refresh_home":
+                # Refresh the home screen with undelivered messages
+                state_data = command_data["undeliv_messages"]
+                current_state = "home"
+            elif command == "messages":
+                # Transition to the messages screen
+                state_data = command_data["messages"]
+                current_state = "messages"
+            elif command == "logout":
+                # Log out the user and go back to the signup screen
+                logged_in_user = None
+                current_state = "signup"
+            else:
+                # Handle unknown commands
+                print(f"No valid command: {json_data}")
+    except Exception as e:
+        print(e)
+        print("Error: Connection to server lost!")
+        messagebox.showerror("Error", "Connection to server lost!")
 
 
 # Run the socket connection when the script is executed

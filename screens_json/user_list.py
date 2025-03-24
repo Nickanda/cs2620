@@ -19,7 +19,7 @@ import socket
 import json
 
 
-def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
+def search(s, root: tk.Tk, search: tk.StringVar):
     """
     Handles the search functionality by sending the search query to the server.
     Ensures that input is not empty and contains only alphanumeric characters or '*'.
@@ -42,7 +42,8 @@ def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
         "data": {"search": search_str},
     }
     message = json.dumps(message_dict).encode("utf-8")
-    s.sendall(message)
+    print("TEST", s())
+    s().sendall(message)
     root.destroy()
 
 
@@ -66,7 +67,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
         "data": {"username": username},
     }
     message = json.dumps(message_dict).encode("utf-8")
-    s.sendall(message)
+    s().sendall(message)
     # Close the current window
     root.destroy()
 

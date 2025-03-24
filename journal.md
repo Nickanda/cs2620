@@ -54,3 +54,21 @@ https://github.com/Nickanda/cs2620
 - No issues encountered, but did not test porting over the new JSON formatting, will note to test that
 
 [Back to Table of Contents](#table-of-contents)
+
+---
+
+### March 23, 2025
+
+#### Progress
+
+- Finished the rest of the implementation and finally started booting up our system on my local computer
+- Ran into some interesting issues in our implementation:
+  - First, we see that the internal communication network is a little buggy because some of our updates are extremely long (since we are communicating the whole database on initial startup) - this is solved by increasing how many bytes of data we can receive at a time.
+  - When multiple machines were connected at a time, we noticed that there were oftentimes multiple data pieces in `data.outb`, so we utilize the null character `\0` as a separator between each of the data pieces
+- Integrated the client side with the servers that we have available and confirmed that it will test
+ 
+#### Issues Encountered
+
+- No issues encountered, but did not test porting over the new JSON formatting, will note to test that
+
+[Back to Table of Contents](#table-of-contents)

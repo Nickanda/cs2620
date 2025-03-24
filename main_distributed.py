@@ -20,6 +20,24 @@ def parse_args(args):
     parser.add_argument(
         "--host", type=str, default="localhost", help="Host for the servers."
     )
+    parser.add_argument(
+        "--internal_other_servers",
+        type=str,
+        default="localhost",
+        help="Comma-separated list of other servers.",
+    )
+    parser.add_argument(
+        "--internal_other_ports",
+        type=str,
+        default="50000",
+        help="Comma-separated list of other server ports.",
+    )
+    parser.add_argument(
+        "--internal_max_ports",
+        type=str,
+        default="10",
+        help="Comma-separated list of other server ports.",
+    )
     return parser.parse_args(args)
 
 

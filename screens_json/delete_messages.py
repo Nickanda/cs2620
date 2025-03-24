@@ -21,7 +21,7 @@ import json
 
 
 def delete_message(
-    s: socket.SocketType, root: tk.Tk, delete_ids: tk.StringVar, current_user: str
+    s: socket.socket, root: tk.Tk, delete_ids: tk.StringVar, current_user: str
 ):
     """
     Sends a request to delete specified messages at delete_ids
@@ -47,13 +47,13 @@ def delete_message(
         "data": {"delete_ids": delete_ids_str, "current_user": current_user},
     }
     message = json.dumps(message_dict).encode("utf-8")
-    s.sendall(message)
+    s().sendall(message)
 
     # Close the Tkinter window after sending the request
     root.destroy()
 
 
-def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
+def launch_home(s: socket.socket, root: tk.Tk, username: str):
     """
     Sends a request to refresh the home screen.
     """
@@ -63,13 +63,13 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
         "data": {"username": username},
     }
     message = json.dumps(message_dict).encode("utf-8")
-    s.sendall(message)
+    s().sendall(message)
 
     # Close the Tkinter window to return to home screen
     root.destroy()
 
 
-def launch_window(s: socket.SocketType, current_user: str):
+def launch_window(s, current_user: str):
     """
     Launches a Tkinter window for deleting messages for current_user.
     """
@@ -95,8 +95,8 @@ def launch_window(s: socket.SocketType, current_user: str):
     button_submit.pack()
 
     # Back to home
-    tk.Button(
-        root, text="Home", command=lambda: launch_home(s, root, current_user)
-    ).pack(pady=10)
+    tk.Button(root, text="Home", command=lambda: launch_home(root, current_user)).pack(
+        pady=10
+    )
 
     root.mainloop()

@@ -21,9 +21,7 @@ import screens_json.signup
 import json
 
 
-def login(
-    s: socket.SocketType, root: tk.Tk, username: tk.StringVar, password: tk.StringVar
-):
+def login(s, root: tk.Tk, username: tk.StringVar, password: tk.StringVar):
     """
     Handles the login process by sending username and hashed password to the server.
     """
@@ -52,7 +50,7 @@ def login(
     message = json.dumps(message_dict).encode("utf-8")
 
     # Send login request to the server
-    s.sendall(message)
+    s().sendall(message)
 
     # Close the login window after sending the credentials
     root.destroy()
@@ -66,7 +64,7 @@ def launch_signup(s: socket.SocketType, root: tk.Tk):
     screens_json.signup.launch_window(s)
 
 
-def launch_window(s: socket.SocketType):
+def launch_window(s):
     """
     Creates and launches the login window.
     """

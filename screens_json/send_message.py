@@ -53,7 +53,7 @@ def send_message(
         },
     }
     message = json.dumps(message_dict).encode("utf-8")
-    s.sendall(message)
+    s().sendall(message)
 
     # Close the message window
     root.destroy()
@@ -69,11 +69,11 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
         "data": {"username": username},
     }
     message = json.dumps(message_dict).encode("utf-8")
-    s.sendall(message)
+    s().sendall(message)
     root.destroy()
 
 
-def launch_window(s: socket.SocketType, current_user: str):
+def launch_window(s, current_user: str):
     """
     Launches the message sending window for the current user.
     """
