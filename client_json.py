@@ -24,6 +24,7 @@ import screens_json.messages
 import screens_json.user_list
 import json
 import argparse
+import time
 
 
 def parse_arguments():
@@ -55,6 +56,7 @@ def parse_arguments():
 
 
 connected_socket = None
+checking_connection = False
 
 
 def get_socket(hosts, ports, num_ports):
@@ -64,19 +66,29 @@ def get_socket(hosts, ports, num_ports):
 
     def to_return():
         global connected_socket
+
+        while checking_connection:
+            time.sleep(0.1)
+
+        checking_connection = True
+
         try:
             if connected_socket is not None:
-                data = connected_socket.recv(16, socket.MSG_DONTWAIT | socket.MSG_PEEK)
+                print("Checking existing connection", connected_socket)
+                data = connected_socket.recv(
+                    1024, socket.MSG_DONTWAIT | socket.MSG_PEEK
+                )
+                print(len(data))
                 if len(data) == 0:
                     connected_socket = None
                     print("Connection closed")
                 else:
                     print("Reusing existing connection")
+                    checking_connection = False
                     return connected_socket
         except Exception:
             connected_socket = None
 
-        print(hosts, ports, num_ports)
         for i, host in enumerate(hosts):
             for port in range(num_ports[i]):
                 try:
@@ -84,10 +96,14 @@ def get_socket(hosts, ports, num_ports):
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.connect((host, ports[i] + port))
                     connected_socket = s
+                    print(f"Connected to {host}:{ports[i] + port}")
+                    checking_connection
                     return s
                 except Exception:
                     print(f"Could not connect to {host}:{ports[i] + port}")
                     continue
+
+        checking_connection = False
         return None
 
     return to_return
@@ -135,6 +151,7 @@ def connect_socket(hosts, ports, num_ports):
 
             data = s.recv(1024)
             json_data = json.loads(data.decode("utf-8"))
+            print(json_data)
             version = json_data["version"]
             command = json_data["command"]
             command_data = json_data["data"]
