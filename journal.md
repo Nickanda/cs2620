@@ -7,11 +7,21 @@ https://github.com/Nickanda/cs2620
 ## Table of Contents
 
 - [Coding Project Journal](#coding-project-journal)
+  - [Link to Project](#link-to-project)
   - [Table of Contents](#table-of-contents)
   - [Development Log](#development-log)
-    - [February 5, 2025](#february-5-2025)
+    - [March 21, 2025](#march-21-2025)
       - [Progress](#progress)
       - [Issues Encountered](#issues-encountered)
+    - [March 22, 2025](#march-22-2025)
+      - [Progress](#progress-1)
+      - [Issues Encountered](#issues-encountered-1)
+    - [March 23, 2025](#march-23-2025)
+      - [Progress](#progress-2)
+      - [Issues Encountered](#issues-encountered-2)
+    - [March 23, 2025](#march-23-2025-1)
+      - [Progress](#progress-3)
+      - [Issues Encountered](#issues-encountered-3)
 
 ## Development Log
 
@@ -70,5 +80,18 @@ https://github.com/Nickanda/cs2620
 #### Issues Encountered
 
 - No issues encountered, but did not test porting over the new JSON formatting, will note to test that
+
+---
+
+### March 23, 2025
+
+#### Progress
+
+- After the implementation ran correctly on one device, we tried to code across two devices, with one acting as a server and the other running a couple of clients
+- There were issues in connecting to the server disceerning whether there was an issue between the client connecting to the server or the server failing to send information effectively back to the client.
+
+#### Issues Encountered
+
+- We had issues where connections were succesfully accepted and closed but databases on the server side were not updated correctly, especially after a particular client was closed
 
 [Back to Table of Contents](#table-of-contents)
