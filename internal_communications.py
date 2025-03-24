@@ -103,9 +103,13 @@ class InternalCommunicator(threading.Thread):
         if (
             not self.leader
             or self.leader
-            not in [self.port] + [addr[1] for addr, _ in self.connected_servers]
+            not in [f"{self.host}:{self.port}"]
+            + [f"{addr[0]}:{addr[1]}" for addr, _ in self.connected_servers]
             or self.leader
-            < min([self.port] + [addr[1] for addr, _ in self.connected_servers])
+            < min(
+                [f"{self.host}:{self.port}"]
+                + [f"{addr[0]}:{addr[1]}" for addr, _ in self.connected_servers]
+            )
         ):
             print(f"INTERNAL {self.id}: No leader detected. Initiating election.")
             self.elect_leader()
