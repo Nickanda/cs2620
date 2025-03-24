@@ -2,6 +2,9 @@ import json
 import socket
 import threading
 import time
+import database_wrapper
+import selectors
+import types
 
 
 class InternalCommunicator(threading.Thread):
@@ -22,8 +25,11 @@ class InternalCommunicator(threading.Thread):
 
         self.connectable_ports = []
         for i, host in enumerate(allowed_hosts):
-            for counter in range(max_ports[i]):
-                self.connectable_ports.append((host, starting_ports[i] + counter))
+            for port in starting_ports:
+                for counter in range(max_ports[i]):
+                    self.connectable_ports.append((host, port + counter))
+
+        print(f"INTERNAL {self.id}: Connectable ports: {self.connectable_ports}")
 
         self.connected_servers = []
 
@@ -31,6 +37,21 @@ class InternalCommunicator(threading.Thread):
         self.port = current_port
 
         self.leader = None  # Store the current leader
+        self.loaded_database = False
+
+    def get_database_from_leader(self):
+        """Fetches the database from the current leader."""
+        if self.leader is not None:
+            for addr, conn in self.connected_servers:
+                if addr[1] == self.leader:
+                    try:
+                        conn.sendall(
+                            f"{json.dumps({'version': 0, 'command': 'get_database', 'host': self.host, 'port': self.port})}\n".encode(
+                                "utf-8"
+                            )
+                        )
+                    except Exception as e:
+                        print(f"INTERNAL {self.id}: Error fetching database: {e}")
 
     def update_connected_machines(self):
         while True:
@@ -74,6 +95,9 @@ class InternalCommunicator(threading.Thread):
             # Check and elect a leader if necessary
             self.check_and_elect_leader()
 
+            if not self.loaded_database:
+                self.get_database_from_leader()
+
             time.sleep(5)
 
     def check_and_elect_leader(self):
@@ -114,14 +138,18 @@ class InternalCommunicator(threading.Thread):
             }
             sock.sendall(f"{json.dumps(data_obj)}\n".encode("utf-8"))
 
-    def handle_connection(self, conn):
+    def handle_connection(self, key, mask):
         """Handles an incoming connection, reading messages and enqueuing them."""
-        buffer = ""
-        while True:
+        conn = key.fileobj
+        data = key.data
+        if mask & selectors.EVENT_READ:
+            buffer = ""
             try:
                 data = conn.recv(1024).decode("utf-8")
                 if not data:
-                    break
+                    self.sel.unregister(conn)
+                    conn.close()
+                    return
                 buffer += data
                 # Process complete messages terminated by newline.
                 while "\n" in buffer:
@@ -138,7 +166,7 @@ class InternalCommunicator(threading.Thread):
                                     print(
                                         f"INTERNAL {self.id}: Leader updated to {self.leader}"
                                     )
-                            elif msg["command"] == "distribute_updae":
+                            elif msg["command"] == "distribute_update":
                                 command = msg["data"]["command"]
                                 received_data = msg["data"]
 
@@ -149,21 +177,19 @@ class InternalCommunicator(threading.Thread):
                                 elif command == "logout":
                                     self.vm.logout(conn, received_data, True)
                                 elif command == "search":
-                                    self.vm.search_messages(conn, received_data, True)
+                                    self.vm.search_messages(conn, received_data)
                                 elif command == "delete_acct":
                                     self.vm.delete_account(conn, received_data, True)
                                 elif command == "send_msg":
                                     self.vm.deliver_message(conn, received_data, True)
                                 elif command == "get_undelivered":
                                     self.vm.get_undelivered_messages(
-                                        conn, received_data, True
+                                        conn, received_data
                                     )
                                 elif command == "get_delivered":
-                                    self.vm.get_delivered_messages(
-                                        conn, received_data, True
-                                    )
+                                    self.vm.get_delivered_messages(conn, received_data)
                                 elif command == "refresh_home":
-                                    self.vm.refresh_home(conn, received_data, True)
+                                    self.vm.refresh_home(conn, received_data)
                                 elif command == "delete_msg":
                                     self.vm.delete_messages(conn, received_data, True)
                                 else:
@@ -176,6 +202,7 @@ class InternalCommunicator(threading.Thread):
                                         addr[0] == msg["host"]
                                         and addr[1] == msg["port"]
                                     ):
+                                        print(addr[0], addr[1])
                                         sock.sendall(
                                             f"{json.dumps({'version': 0, 'command': 'set_database_users', 'data': self.vm.database['users']})}\n".encode(
                                                 "utf-8"
@@ -191,49 +218,80 @@ class InternalCommunicator(threading.Thread):
                                                 "utf-8"
                                             )
                                         )
+                                        sock.sendall(
+                                            f"{json.dumps({'version': 0, 'command': 'finish_loading_database', 'data': {}})}\n".encode(
+                                                "utf-8"
+                                            )
+                                        )
                             elif msg["command"] == "set_database_users":
+                                print(f"INTERNAL {self.id}: Updating users database")
                                 self.vm.database["users"] = msg["data"]
+                                database_wrapper.save_database(
+                                    self.id,
+                                    self.vm.database["users"],
+                                    self.vm.database["messages"],
+                                    self.vm.database["settings"],
+                                )
                             elif msg["command"] == "set_database_messages":
+                                print(f"INTERNAL {self.id}: Updating messages database")
                                 self.vm.database["messages"] = msg["data"]
+                                database_wrapper.save_database(
+                                    self.id,
+                                    self.vm.database["users"],
+                                    self.vm.database["messages"],
+                                    self.vm.database["settings"],
+                                )
                             elif msg["command"] == "set_database_settings":
+                                print(f"INTERNAL {self.id}: Updating settings database")
                                 self.vm.database["settings"] = msg["data"]
+                                database_wrapper.save_database(
+                                    self.id,
+                                    self.vm.database["users"],
+                                    self.vm.database["messages"],
+                                    self.vm.database["settings"],
+                                )
+                            elif msg["command"] == "finish_loading_database":
+                                print(f"INTERNAL {self.id}: Updating COMPLETE database")
+                                self.loaded_database = True
                             else:
                                 print(
                                     f"INTERNAL {self.id}: Error parsing message: {line}"
                                 )
                         except Exception as e:
                             print(f"INTERNAL {self.id}: Error parsing message: {e}")
-            except Exception:
-                break
-        conn.close()
+            except Exception as e:
+                print(f"INTERNAL {self.id}: Connection error: {e}")
+                self.sel.unregister(conn)
+                conn.close()
 
-    def get_database_from_leader(self):
-        """Fetches the database from the current leader."""
-        if self.leader:
-            for addr, conn in self.connected_servers:
-                if addr[1] == self.leader:
-                    try:
-                        conn.sendall(
-                            f"{json.dumps({'version': 0, 'command': 'get_database', 'host': self.host, 'port': self.port})}\n".encode(
-                                "utf-8"
-                            )
-                        )
-                    except Exception as e:
-                        print(f"INTERNAL {self.id}: Error fetching database: {e}")
+    def accept_wrapper(self, sock):
+        """
+        Accept a new socket connection and register it with the selector.
+        """
+        conn, addr = sock.accept()
+        print(f"Accepted connection from {addr}")
+        conn.setblocking(False)
+        data = types.SimpleNamespace(addr=addr, inb=b"", outb=b"")
+        events = selectors.EVENT_READ | selectors.EVENT_WRITE
+        self.sel.register(conn, events, data=data)
 
     def run(self):
         """Starts a TCP server to listen for incoming connections and messages."""
+        self.sel = selectors.DefaultSelector()
+
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_sock.bind((self.host, self.port))
-        server_sock.listen(5)
-        server_sock.settimeout(1.0)
+        server_sock.listen()
+        server_sock.setblocking(False)
+        self.sel.register(server_sock, selectors.EVENT_READ, data=None)
+
         threading.Thread(target=self.update_connected_machines, daemon=True).start()
+
         while True:
-            try:
-                conn, addr = server_sock.accept()
-                self.handle_connection(conn)
-            except socket.timeout:
-                continue
-            except Exception as e:
-                print(f"INTERNAL {self.id}: Server error: {e}")
+            events = self.sel.select(timeout=None)
+            for key, mask in events:
+                if key.data is None:
+                    self.accept_wrapper(key.fileobj)
+                else:
+                    self.handle_connection(key, mask)

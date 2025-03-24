@@ -4,7 +4,7 @@ import argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start distributed servers.")
     parser.add_argument(
-        "--num_servers", type=int, default=5, help="Number of servers to start."
+        "--num_servers", type=int, default=2, help="Number of servers to start."
     )
     parser.add_argument(
         "--start_server_port", type=int, default=50000, help="Starting server port."

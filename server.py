@@ -73,8 +73,11 @@ class FaultTolerantServer(multiprocessing.Process):
         sock.send(json.dumps(error_obj).encode("utf-8"))
         data.outb = data.outb[data_length:]
 
-    def parse_json_data(self, sock: socket.socket, data):
-        decoded_data = data.outb.decode("utf-8")
+    def parse_json_data(self, sock: socket.socket, data, internal_change=False):
+        if internal_change:
+            decoded_data = json.dumps(data)
+        else:
+            decoded_data = data.outb.decode("utf-8")
         json_data = json.loads(decoded_data)
         version = json_data["version"]
         command = json_data["command"]
@@ -97,15 +100,19 @@ class FaultTolerantServer(multiprocessing.Process):
         return num_messages
 
     def create_account(self, sock: socket.socket, unparsed_data, internal_change=False):
-        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(
+            sock, unparsed_data, internal_change
+        )
         username = command_data["username"].strip()
         password = command_data["password"].strip()
 
         if internal_change:
+            addr = command_data.get("addr")
+
             self.database["users"][username] = {
                 "password": password,
                 "logged_in": True,
-                "addr": None,
+                "addr": addr,
             }
             database_wrapper.save_database(
                 self.id,
@@ -150,12 +157,15 @@ class FaultTolerantServer(multiprocessing.Process):
                 "data": {
                     "username": username,
                     "password": password,
+                    "addr": f"{data.addr[0]}:{data.addr[1]}",
                 },
             }
         )
 
     def login(self, sock: socket.socket, unparsed_data, internal_change=False):
-        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(
+            sock, unparsed_data, internal_change
+        )
 
         username = command_data["username"]
         password = command_data.get("password")
@@ -213,7 +223,9 @@ class FaultTolerantServer(multiprocessing.Process):
         )
 
     def logout(self, sock: socket.socket, unparsed_data, internal_change=False):
-        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(
+            sock, unparsed_data, internal_change
+        )
 
         username = command_data["username"]
 
@@ -263,7 +275,9 @@ class FaultTolerantServer(multiprocessing.Process):
         self.send_message(sock, data_length, "user_list", data, return_dict)
 
     def delete_account(self, sock: socket.socket, unparsed_data, internal_change=False):
-        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(
+            sock, unparsed_data, internal_change
+        )
         acct = command_data["username"]
 
         if internal_change:
@@ -325,7 +339,9 @@ class FaultTolerantServer(multiprocessing.Process):
     def deliver_message(
         self, sock: socket.socket, unparsed_data, internal_change=False
     ):
-        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(
+            sock, unparsed_data, internal_change
+        )
 
         sender = command_data["sender"]
         receiver = command_data["recipient"]
@@ -499,7 +515,9 @@ class FaultTolerantServer(multiprocessing.Process):
     def delete_messages(
         self, sock: socket.socket, unparsed_data, internal_change=False
     ):
-        _, command_data, data, data_length = self.parse_json_data(sock, unparsed_data)
+        _, command_data, data, data_length = self.parse_json_data(
+            sock, unparsed_data, internal_change
+        )
 
         current_user = command_data["current_user"]
         msgids_to_delete = set(command_data["delete_ids"].split(","))
