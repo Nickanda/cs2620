@@ -1,8 +1,13 @@
 import server
 import argparse
+import sys
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Start distributed servers.")
+
+def parse_args(args):
+    """
+    Parse command-line arguments for the distributed server.
+    """
+    parser = argparse.ArgumentParser(description="Distributed Server Configuration")
     parser.add_argument(
         "--num_servers", type=int, default=2, help="Number of servers to start."
     )
@@ -15,25 +20,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--host", type=str, default="localhost", help="Host for the servers."
     )
-    parser.add_argument(
-        "--internal_other_servers",
-        type=str,
-        default="localhost",
-        help="Host for internal communication with other servers.",
-    )
-    parser.add_argument(
-        "--internal_other_ports",
-        type=str,
-        default="60000",
-        help="Comma-separated list of internal ports for other servers.",
-    )
-    parser.add_argument(
-        "--internal_max_ports",
-        type=str,
-        default="10",
-        help="Maximum number of ports for internal communication.",
-    )
-    args = parser.parse_args()
+    return parser.parse_args(args)
+
+
+def main():
+    args = parse_args(sys.argv[1:])
 
     server_ports = [args.start_server_port + i for i in range(args.num_servers)]
     internal_ports = [args.start_internal_port + i for i in range(args.num_servers)]
@@ -42,7 +33,7 @@ if __name__ == "__main__":
 
     for i, port in enumerate(server_ports):
         # Start a server for each port
-        sys = server.FaultTolerantServer(
+        ser = server.FaultTolerantServer(
             id=i,
             host=args.host,
             port=port,
@@ -51,13 +42,17 @@ if __name__ == "__main__":
             internal_other_ports=list(map(int, args.internal_other_ports.split(","))),
             internal_max_ports=list(map(int, args.internal_max_ports.split(","))),
         )
-        sys.start()
-        processes.append(sys)
+        ser.start()
+        processes.append(ser)
 
     try:
-        for sys in processes:
-            sys.join()  # Wait for each server to finish
+        for ser in processes:
+            ser.join()  # Wait for each server to finish
     except KeyboardInterrupt:
-        for sys in processes:
-            sys.terminate()
+        for ser in processes:
+            ser.terminate()
         print("Servers stopped.")
+
+
+if __name__ == "__main__":
+    main()
