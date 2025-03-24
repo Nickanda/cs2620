@@ -76,14 +76,17 @@ def get_socket(hosts, ports, num_ports):
         except Exception:
             connected_socket = None
 
+        print(hosts, ports, num_ports)
         for i, host in enumerate(hosts):
             for port in range(num_ports[i]):
                 try:
+                    # print(host, port[i] + port)
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.connect((host, ports[i] + port))
                     connected_socket = s
                     return s
                 except Exception:
+                    print(f"Could not connect to {host}:{ports[i] + port}")
                     continue
         return None
 

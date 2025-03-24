@@ -93,7 +93,6 @@ class InternalCommunicator(threading.Thread):
             # Check and elect a leader if necessary
             self.check_and_elect_leader()
 
-            print(self.loaded_database)
             if not self.loaded_database:
                 self.get_database_from_leader()
 

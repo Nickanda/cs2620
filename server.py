@@ -671,6 +671,7 @@ class FaultTolerantServer(multiprocessing.Process):
 
         # Create and bind the listening socket
         lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         lsock.bind((self.host, self.port))
         lsock.listen()
         print("Listening on", (self.host, self.port))

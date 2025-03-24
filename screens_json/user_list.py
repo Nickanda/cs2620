@@ -42,7 +42,6 @@ def search(s, root: tk.Tk, search: tk.StringVar):
         "data": {"search": search_str},
     }
     message = json.dumps(message_dict).encode("utf-8")
-    print("TEST", s())
     s().sendall(message)
     root.destroy()
 
