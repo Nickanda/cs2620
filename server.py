@@ -21,13 +21,13 @@ class FaultTolerantServer(multiprocessing.Process):
     ):
         super().__init__()
 
-        self.id = id
+        self.id = f"{id}{port}"
         self.host = host
         self.port = port
 
         self.internal_communicator_args = {
             "vm": self,
-            "vm_id": id,
+            "vm_id": self.id,
             "allowed_hosts": internal_other_servers,
             "starting_ports": internal_other_ports,
             "max_ports": internal_max_ports,
@@ -35,7 +35,7 @@ class FaultTolerantServer(multiprocessing.Process):
             "current_port": current_starting_port,
         }
 
-        users, messages, settings = database_wrapper.load_database(id)
+        users, messages, settings = database_wrapper.load_database(self.id)
         self.database = {
             "users": users,
             "messages": messages,
