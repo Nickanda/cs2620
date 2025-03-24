@@ -41,7 +41,7 @@ class InternalCommunicator(threading.Thread):
         """Fetches the database from the current leader."""
         if self.leader is not None:
             for addr, conn in self.connected_servers:
-                if addr[1] == self.leader:
+                if f"{addr[0]}:{addr[1]}" == self.leader:
                     try:
                         conn.sendall(
                             f"{json.dumps({'version': 0, 'command': 'get_database', 'host': self.host, 'port': self.port})}\0".encode(
@@ -93,6 +93,7 @@ class InternalCommunicator(threading.Thread):
             # Check and elect a leader if necessary
             self.check_and_elect_leader()
 
+            print(self.loaded_database)
             if not self.loaded_database:
                 self.get_database_from_leader()
 
@@ -111,18 +112,20 @@ class InternalCommunicator(threading.Thread):
 
     def elect_leader(self):
         # Elect the leader as the VM with the smallest ID
-        all_ids = [self.port] + [addr[1] for addr, _ in self.connected_servers]
+        all_ids = [f"{self.host}:{self.port}"] + [
+            f"{addr[0]}:{addr[1]}" for addr, _ in self.connected_servers
+        ]
         new_leader = min(all_ids)
         self.leader = new_leader
         self.loaded_database = False
         print(f"INTERNAL {self.id}: New leader elected: {self.leader}")
-        for _, sock in self.connected_servers:
-            data_obj = {
-                "version": 0,
-                "command": "internal_update",
-                "data": {"leader": self.leader},
-            }
-            sock.sendall(f"{json.dumps(data_obj)}\0".encode("utf-8"))
+        # for _, sock in self.connected_servers:
+        #     data_obj = {
+        #         "version": 0,
+        #         "command": "internal_update",
+        #         "data": {"leader": self.leader},
+        #     }
+        #     sock.sendall(f"{json.dumps(data_obj)}\0".encode("utf-8"))
 
     def distribute_update(self, update):
         for _, sock in self.connected_servers:
