@@ -122,13 +122,6 @@ class InternalCommunicator(threading.Thread):
         self.leader = new_leader
         self.loaded_database = False
         print(f"INTERNAL {self.id}: New leader elected: {self.leader}")
-        # for _, sock in self.connected_servers:
-        #     data_obj = {
-        #         "version": 0,
-        #         "command": "internal_update",
-        #         "data": {"leader": self.leader},
-        #     }
-        #     sock.sendall(f"{json.dumps(data_obj)}\0".encode("utf-8"))
 
     def distribute_update(self, update):
         for _, sock in self.connected_servers:
@@ -206,6 +199,10 @@ class InternalCommunicator(threading.Thread):
                                 data.outb = data.outb[len(received_data) :]
                         elif msg["command"] == "get_database":
                             for addr, sock in self.connected_servers:
+                                print(f"INTERNAL {self.id}: Sending database to {addr}")
+                                print(
+                                    f"INTERNAL {self.id}: Host: {msg['host']}, Port: {msg['port']}"
+                                )
                                 if addr[0] == msg["host"] and addr[1] == msg["port"]:
                                     sock.sendall(
                                         (

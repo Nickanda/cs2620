@@ -95,8 +95,8 @@ def launch_window(s, current_user: str):
     button_submit.pack()
 
     # Back to home
-    tk.Button(root, text="Home", command=lambda: launch_home(root, current_user)).pack(
-        pady=10
-    )
+    tk.Button(
+        root, text="Home", command=lambda: launch_home(s, root, current_user)
+    ).pack(pady=10)
 
     root.mainloop()
