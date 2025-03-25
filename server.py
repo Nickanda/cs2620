@@ -88,7 +88,7 @@ class FaultTolerantServer(multiprocessing.Process):
 
         if version != 0:
             self.send_error(sock, data_length, data, "Unsupported protocol version")
-        print(command, command_data, data_length)
+
         return command, command_data, data, data_length
 
     def get_new_messages(self, username: str):
