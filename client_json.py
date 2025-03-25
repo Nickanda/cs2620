@@ -65,7 +65,7 @@ def get_socket(hosts, ports, num_ports):
     """
 
     def to_return():
-        global connected_socket
+        global connected_socket, checking_connection
 
         while checking_connection:
             time.sleep(0.1)
@@ -97,7 +97,7 @@ def get_socket(hosts, ports, num_ports):
                     s.connect((host, ports[i] + port))
                     connected_socket = s
                     print(f"Connected to {host}:{ports[i] + port}")
-                    checking_connection
+                    checking_connection = False
                     return s
                 except Exception:
                     print(f"Could not connect to {host}:{ports[i] + port}")
