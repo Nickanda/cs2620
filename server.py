@@ -57,7 +57,9 @@ class FaultTolerantServer(multiprocessing.Process):
             "data": message,
         }
         sock.send(json.dumps(data_obj).encode("utf-8"))
+        print("BEFORE", data.outb.decode("utf-8"))
         data.outb = data.outb[data_length:]
+        print("AFTER", data.outb.decode("utf-8"))
 
     def send_error(
         self, sock: socket.socket, data_length: int, data, error_message: str
@@ -77,16 +79,16 @@ class FaultTolerantServer(multiprocessing.Process):
         if internal_change:
             decoded_data = json.dumps(data)
         else:
-            decoded_data = data.outb.decode("utf-8")
+            decoded_data = data.outb.decode("utf-8").split("\0")[0]
         json_data = json.loads(decoded_data)
         version = json_data["version"]
         command = json_data["command"]
         command_data = json_data["data"]
-        data_length = len(decoded_data)
+        data_length = len(decoded_data) + len("\0")
 
         if version != 0:
             self.send_error(sock, data_length, data, "Unsupported protocol version")
-
+        print(command, command_data, data_length)
         return command, command_data, data, data_length
 
     def get_new_messages(self, username: str):
@@ -121,19 +123,19 @@ class FaultTolerantServer(multiprocessing.Process):
                 self.database["settings"],
             )
             return
-
+        print(1)
         if not username.isalnum():
             self.send_error(sock, data_length, data, "Username must be alphanumeric")
             return
-
+        print(2)
         if username in self.database["users"]:
             self.send_error(sock, data_length, data, "Username already exists")
             return
-
+        print(3)
         if password.strip() == "":
             self.send_error(sock, data_length, data, "Password cannot be empty")
             return
-
+        print(4)
         # Create new user in the users dict
         self.database["users"][username] = {
             "password": password,
@@ -630,7 +632,7 @@ class FaultTolerantServer(multiprocessing.Process):
                 # Decode the entire payload, split by space for the command,
                 # then parse the rest as JSON
                 received_data = data.outb.decode("utf-8")
-                command, _, _, _ = self.parse_json_data(sock, data)
+                command, _, _, data_length = self.parse_json_data(sock, data)
 
                 ###################################################################
                 # Process recognized JSON-based commands.
@@ -656,6 +658,8 @@ class FaultTolerantServer(multiprocessing.Process):
                     self.refresh_home(sock, data)
                 elif command == "delete_msg":
                     self.delete_messages(sock, data)
+                elif command == "check_connection":
+                    data.outb = data.outb[data_length:]
                 else:
                     # Command not recognized
                     print(f"No valid command: {received_data}")

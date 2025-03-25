@@ -25,6 +25,7 @@ import screens_json.user_list
 import json
 import argparse
 import time
+import threading
 
 
 def parse_arguments():
@@ -55,58 +56,72 @@ def parse_arguments():
     return parser.parse_args()
 
 
-connected_socket = None
-checking_connection = False
+connected_servers = []
 
 
-def get_socket(hosts, ports, num_ports):
+def update_socket_thread(hosts, ports, num_ports):
     """
     Establishes a connection to the server by iterating over hosts and ports.
     """
 
-    def to_return():
-        global connected_socket, checking_connection
+    global connected_servers
+    connectable_ports = []
+    for i, host in enumerate(hosts):
+        for port in ports:
+            for counter in range(num_ports[i]):
+                connectable_ports.append((host, port + counter))
 
-        while checking_connection:
-            time.sleep(0.1)
+    while True:
+        connected_addrs = []
 
-        checking_connection = True
-
-        try:
-            if connected_socket is not None:
-                print("Checking existing connection", connected_socket)
-                data = connected_socket.recv(
-                    1024, socket.MSG_DONTWAIT | socket.MSG_PEEK
+        for addr, conn in connected_servers:
+            try:
+                conn.sendall(
+                    f"{json.dumps({'version': 0, 'command': 'check_connection', 'data': {}})}\0".encode(
+                        "utf-8"
+                    )
                 )
-                print(len(data))
-                if len(data) == 0:
-                    connected_socket = None
-                    print("Connection closed")
-                else:
-                    print("Reusing existing connection")
-                    checking_connection = False
-                    return connected_socket
-        except Exception:
-            connected_socket = None
+                connected_addrs.append(addr)
+            except Exception:
+                print(f"CLIENT: Connection to {addr} lost.")
+                conn.close()
+                connected_servers.remove((addr, conn))
 
-        for i, host in enumerate(hosts):
-            for port in range(num_ports[i]):
-                try:
-                    # print(host, port[i] + port)
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect((host, ports[i] + port))
-                    connected_socket = s
-                    print(f"Connected to {host}:{ports[i] + port}")
-                    checking_connection = False
-                    return s
-                except Exception:
-                    print(f"Could not connect to {host}:{ports[i] + port}")
-                    continue
+        for addr in connectable_ports:
+            if addr in connected_addrs:
+                continue
 
-        checking_connection = False
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                s.connect(addr)
+
+                found_addr = False
+                for saved_addr, _ in connected_servers:
+                    if saved_addr == addr:
+                        found_addr = True
+                        break
+
+                if not found_addr:
+                    connected_servers.append((addr, s))
+            except Exception:
+                for ind, (saved_addr, conn) in enumerate(connected_servers):
+                    if saved_addr == addr:
+                        conn.close()
+                        del connected_servers[ind]
+
+        time.sleep(0.1)
+
+
+def get_socket():
+    """
+    Establishes a connection to the server by iterating over hosts and ports.
+    """
+    global connected_servers
+    if len(connected_servers) == 0:
         return None
 
-    return to_return
+    s = connected_servers[0][1]
+    return s
 
 
 def connect_socket(hosts, ports, num_ports):
@@ -121,7 +136,7 @@ def connect_socket(hosts, ports, num_ports):
     try:
         # Create a socket and connect to the server
         while True:
-            s = get_socket(hosts, ports, num_ports)
+            s = get_socket
             # Launch the appropriate UI screen based on the current state
             if current_state == "signup":
                 screens_json.signup.launch_window(s)
@@ -143,7 +158,8 @@ def connect_socket(hosts, ports, num_ports):
                 )  # Default to signup screen
 
             # Receive and decode data from the server
-            s = get_socket(hosts, ports, num_ports)()
+            s = get_socket()
+            print(s)
             if s is None:
                 print("Error: Could not connect to server!")
                 messagebox.showerror("Error", "Could not connect to server!")
@@ -151,7 +167,6 @@ def connect_socket(hosts, ports, num_ports):
 
             data = s.recv(1024)
             json_data = json.loads(data.decode("utf-8"))
-            print(json_data)
             version = json_data["version"]
             command = json_data["command"]
             command_data = json_data["data"]
@@ -203,5 +218,9 @@ if __name__ == "__main__":
     hosts = args.hosts.split(",")
     ports = list(map(int, args.ports.split(",")))
     num_ports = list(map(int, args.num_ports.split(",")))
+
+    threading.Thread(
+        target=update_socket_thread, args=(hosts, ports, num_ports)
+    ).start()
 
     connect_socket(hosts, ports, num_ports)

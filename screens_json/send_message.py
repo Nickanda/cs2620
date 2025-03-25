@@ -52,7 +52,7 @@ def send_message(
             "message": message_str,
         },
     }
-    message = json.dumps(message_dict).encode("utf-8")
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
     s().sendall(message)
 
     # Close the message window
@@ -68,7 +68,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
         "command": "refresh_home",
         "data": {"username": username},
     }
-    message = json.dumps(message_dict).encode("utf-8")
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
     s().sendall(message)
     root.destroy()
 

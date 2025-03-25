@@ -47,7 +47,7 @@ def login(s, root: tk.Tk, username: tk.StringVar, password: tk.StringVar):
             "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest(),
         },
     }
-    message = json.dumps(message_dict).encode("utf-8")
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
 
     # Send login request to the server
     s().sendall(message)

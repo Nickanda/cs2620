@@ -41,7 +41,7 @@ def search(s, root: tk.Tk, search: tk.StringVar):
         "command": "search",
         "data": {"search": search_str},
     }
-    message = json.dumps(message_dict).encode("utf-8")
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
     s().sendall(message)
     root.destroy()
 
@@ -65,7 +65,7 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
         "command": "refresh_home",
         "data": {"username": username},
     }
-    message = json.dumps(message_dict).encode("utf-8")
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
     s().sendall(message)
     # Close the current window
     root.destroy()

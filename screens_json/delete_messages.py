@@ -46,7 +46,7 @@ def delete_message(
         "command": "delete_msg",
         "data": {"delete_ids": delete_ids_str, "current_user": current_user},
     }
-    message = json.dumps(message_dict).encode("utf-8")
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
     s().sendall(message)
 
     # Close the Tkinter window after sending the request
@@ -62,7 +62,7 @@ def launch_home(s: socket.socket, root: tk.Tk, username: str):
         "command": "refresh_home",
         "data": {"username": username},
     }
-    message = json.dumps(message_dict).encode("utf-8")
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
     s().sendall(message)
 
     # Close the Tkinter window to return to home screen
