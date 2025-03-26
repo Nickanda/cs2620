@@ -4,10 +4,15 @@
 
 https://github.com/Nickanda/cs2620
 
+## Link to Video Demonstration
+
+https://youtu.be/qhPTfUEB8hg
+
 ## Table of Contents
 
 - [Coding Project Journal](#coding-project-journal)
   - [Link to Project](#link-to-project)
+  - [Link to Video Demonstration](#link-to-video-demonstration)
   - [Table of Contents](#table-of-contents)
   - [Development Log](#development-log)
     - [Design of the System](#design-of-the-system)
