@@ -8,14 +8,17 @@ Users can enter a username and password to create an account, with the following
 - Communication with a server over a socket connection to send the user creation request.
 - Option to switch to the login screen.
 
+This script uses JSON format to structure and send search queries and refresh requests to the server.
+
 Last updated: February 12, 2025
 """
 
 import tkinter as tk
 from tkinter import messagebox
 import socket
-import screens.login
+import screens_json.login
 import hashlib
+import json
 
 
 def create_user(
@@ -39,12 +42,18 @@ def create_user(
         messagebox.showerror("Error", "Username must be alphanumeric")
         return
 
-    # Hash the password for secure transmission
-    hashed_password = hashlib.sha256(password_str.encode("utf-8")).hexdigest()
+    # Construct message and send to server, including hashed password
+    message_dict = {
+        "version": 0,
+        "command": "create",
+        "data": {
+            "username": username_str,
+            "password": hashlib.sha256(password_str.encode("utf-8")).hexdigest(),
+        },
+    }
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
 
-    # Construct message and send to server
-    message = f"0 create {username_str} {hashed_password}".encode("utf-8")
-    s.sendall(message)
+    s().sendall(message)
 
     # Close the signup window upon successful user creation request
     root.destroy()
@@ -55,10 +64,10 @@ def launch_login(s: socket.SocketType, root: tk.Tk):
     Closes the current signup window and switches to the login window.
     """
     root.destroy()
-    screens.login.launch_window(s)
+    screens_json.login.launch_window(s)
 
 
-def launch_window(s: socket.SocketType):
+def launch_window(s):
     """
     Initializes and displays the user signup window.
     Provides input fields for username and password, and buttons for signup and login.

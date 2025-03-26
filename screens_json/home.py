@@ -10,17 +10,19 @@ From this interface, users can:
 - Log out or delete their account.
 
 This screen acts as a central navigation hub for user interactions.
+Also note that this script uses JSON format to structure and send search queries and refresh requests to the server.
 
 Last updated: February 12, 2025
 """
 
 import tkinter as tk
 import socket
-import screens.signup
-import screens.user_list
-import screens.send_message
-import screens.messages
-import screens.delete_messages
+import screens_json.signup
+import screens_json.user_list
+import screens_json.send_message
+import screens_json.messages
+import screens_json.delete_messages
+import json
 
 
 def open_read_messages(s: socket.socket, root: tk.Tk, username: str):
@@ -28,7 +30,7 @@ def open_read_messages(s: socket.socket, root: tk.Tk, username: str):
     Closes the current window and opens the read messages window.
     """
     root.destroy()
-    screens.messages.launch_window(s, [], username)
+    screens_json.messages.launch_window(s, [], username)
 
 
 def open_send_message(s: socket.socket, root: tk.Tk, current_user: str):
@@ -36,7 +38,7 @@ def open_send_message(s: socket.socket, root: tk.Tk, current_user: str):
     Closes the current window and opens the send message window.
     """
     root.destroy()
-    screens.send_message.launch_window(s, current_user)
+    screens_json.send_message.launch_window(s, current_user)
 
 
 def open_delete_messages(s: socket.socket, root: tk.Tk, current_user: str):
@@ -44,7 +46,7 @@ def open_delete_messages(s: socket.socket, root: tk.Tk, current_user: str):
     Closes the current window and opens the delete messages window.
     """
     root.destroy()
-    screens.delete_messages.launch_window(s, current_user)
+    screens_json.delete_messages.launch_window(s, current_user)
 
 
 def open_user_list(s: socket.socket, root: tk.Tk, username: str):
@@ -52,14 +54,15 @@ def open_user_list(s: socket.socket, root: tk.Tk, username: str):
     Closes the current window and opens the user list window.
     """
     root.destroy()
-    screens.user_list.launch_window(s, [], username)
+    screens_json.user_list.launch_window(s, [], username)
 
 
 def logout(s: socket.socket, root: tk.Tk, username: str):
     """
     Sends a logout request to the server and closes the application.
     """
-    s.sendall(f"0 logout {username}".encode("utf-8"))
+    message_dict = {"version": 0, "command": "logout", "data": {"username": username}}
+    s().sendall((json.dumps(message_dict) + "\0").encode("utf-8"))
     root.destroy()
 
 
@@ -67,15 +70,19 @@ def delete_account(s: socket.socket, root: tk.Tk, username: str):
     """
     Sends an account deletion request to the server and closes the application.
     """
-    s.sendall(f"0 delete_acct {username}".encode("utf-8"))
+    message_dict = {
+        "version": 0,
+        "command": "delete_acct",
+        "data": {"username": username},
+    }
+    s().sendall((json.dumps(message_dict) + "\0").encode("utf-8"))
     root.destroy()
 
 
-def launch_window(s: socket.SocketType, username: str, num_messages: int):
+def launch_window(s, username: str, num_messages: int):
     """
     Creates and displays the main home window with user options.
     """
-
     # Create the main window
     home_root = tk.Tk()
     home_root.title(f"Home - {username}")

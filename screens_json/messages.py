@@ -33,10 +33,14 @@ def get_undelivered_messages(
         return
 
     # Send the request to fetch undelivered messages
-    message_dict = {"username": current_user, "num_messages": num_messages}
+    message_dict = {
+        "version": 0,
+        "command": "get_undelivered",
+        "data": {"username": current_user, "num_messages": num_messages},
+    }
 
     # Send the request to fetch undelivered messages
-    s.sendall(f"0 get_undelivered {json.dumps(message_dict)}".encode("utf-8"))
+    s().sendall((json.dumps(message_dict) + "\0").encode("utf-8"))
 
     # Close the current Tkinter window
     root.destroy()
@@ -56,10 +60,14 @@ def get_delivered_messages(
         return
 
     # Send the request to fetch delivered messages
-    message_dict = {"username": current_user, "num_messages": num_messages}
+    message_dict = {
+        "version": 0,
+        "command": "get_delivered",
+        "data": {"username": current_user, "num_messages": num_messages},
+    }
 
     # Send the request to fetch delivered messages
-    s.sendall(f"0 get_delivered {json.dumps(message_dict)}".encode("utf-8"))
+    s().sendall((json.dumps(message_dict) + "\0").encode("utf-8"))
 
     # Close the current Tkinter window
     root.destroy()
@@ -79,9 +87,13 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     """
     Sends a request to refresh the home screen for the given username and closes the current window.
     """
-    message_dict = {"username": username}
-    message = f"0 refresh_home {json.dumps(message_dict)}".encode("utf-8")
-    s.sendall(message)
+    message_dict = {
+        "version": 0,
+        "command": "refresh_home",
+        "data": {"username": username},
+    }
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
+    s().sendall(message)
     root.destroy()
 
 
@@ -107,7 +119,7 @@ def update_display(text_area, user_list, current_index, prev_button, next_button
     next_button.config(state=tk.NORMAL if end < len(user_list) else tk.DISABLED)
 
 
-def launch_window(s: socket.SocketType, messages: list[str], current_user: str):
+def launch_window(s, messages: list[str], current_user: str):
     """
     Creates the main window for displaying messages with options to fetch delivered/undelivered messages
     and navigate through paginated messages.

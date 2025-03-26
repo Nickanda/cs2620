@@ -1,11 +1,13 @@
 """
-User List Search and Pagination GUI
+User List Search and Pagination GUI (JSON-based)
 
 This script implements a Tkinter-based graphical user interface (GUI) that allows users to:
 - View a paginated list of users (displaying up to 25 users at a time).
 - Perform a search query using alphanumeric characters or '*' as a wildcard.
 - Navigate between pages of users using "Next" and "Previous" buttons.
 - Return to the home screen by sending a refresh request to the server.
+
+This script uses JSON format to structure and send search queries and refresh requests to the server.
 
 Last updated: February 12, 2025
 """
@@ -14,9 +16,10 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import scrolledtext
 import socket
+import json
 
 
-def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
+def search(s, root: tk.Tk, search: tk.StringVar):
     """
     Handles the search functionality by sending the search query to the server.
     Ensures that input is not empty and contains only alphanumeric characters or '*'.
@@ -33,8 +36,13 @@ def search(s: socket.SocketType, root: tk.Tk, search: tk.StringVar):
         return
 
     # Send search query to the server
-    message = f"0 search {search_str}".encode("utf-8")
-    s.sendall(message)
+    message_dict = {
+        "version": 0,
+        "command": "search",
+        "data": {"search": search_str},
+    }
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
+    s().sendall(message)
     root.destroy()
 
 
@@ -52,8 +60,13 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     """
     Handles navigation back to the home screen by sending a refresh request to the server.
     """
-    message = f"0 refresh_home {username}".encode("utf-8")
-    s.sendall(message)
+    message_dict = {
+        "version": 0,
+        "command": "refresh_home",
+        "data": {"username": username},
+    }
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
+    s().sendall(message)
     # Close the current window
     root.destroy()
 

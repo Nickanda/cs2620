@@ -20,9 +20,9 @@ import os
 
 
 # Define database file paths
-users_database_path = "database/users.json"
-messages_database_path = "database/messages.json"
-settings_database_path = "database/settings.json"
+users_database_path = lambda id: f"database/users_{id}.json"  # noqa: E731
+messages_database_path = lambda id: f"database/messages_{id}.json"  # noqa: E731
+settings_database_path = lambda id: f"database/settings_{id}.json"  # noqa: E731
 
 
 def safe_load(filepath, default_value):
@@ -39,7 +39,7 @@ def safe_load(filepath, default_value):
         return default_value
 
 
-def load_database():
+def load_database(vm_id):
     """
     Loads user, message, and settings databases from JSON files.
     """
@@ -50,20 +50,21 @@ def load_database():
         os.makedirs("database")
 
     # Load users with safe default
-    users = safe_load(users_database_path, {})
+    users = safe_load(users_database_path(vm_id), {})
 
-    # Ensure logged_in and addr fields are reset
     for user in users:
-        if users[user].get("logged_in", False):  # Use .get() to avoid KeyErrors
+        if users[user]["logged_in"]:
             users[user]["logged_in"] = False
-            users[user]["addr"] = 0
+            users[user]["addr"] = None
 
     # Load messages with safe default
-    messages = safe_load(messages_database_path, {"undelivered": [], "delivered": []})
+    messages = safe_load(
+        messages_database_path(vm_id), {"undelivered": [], "delivered": []}
+    )
 
     # Load settings with safe default
     settings = safe_load(
-        settings_database_path,
+        settings_database_path(vm_id),
         {
             "counter": 0,
             "host": "127.0.0.1",
@@ -76,7 +77,7 @@ def load_database():
     return users, messages, settings
 
 
-def load_client_database():
+def load_client_database(vm_id):
     """
     Loads user, message, and settings databases from JSON files for the client.
     """
@@ -86,7 +87,7 @@ def load_client_database():
         raise Exception("Database directory does not exist.")
 
     settings = safe_load(
-        settings_database_path,
+        settings_database_path(vm_id),
         {
             "counter": 0,
             "host": "127.0.0.1",
@@ -99,19 +100,19 @@ def load_client_database():
     return settings
 
 
-def save_database(users, messages, settings):
+def save_database(vm_id, users, messages, settings):
     """
     Saves user, message, and settings data back to JSON files.
     """
-    with open(users_database_path, "w") as users_file:
+    with open(users_database_path(vm_id), "w") as users_file:
         json.dump(users, users_file)
-    with open(messages_database_path, "w") as messages_file:
+    with open(messages_database_path(vm_id), "w") as messages_file:
         json.dump(messages, messages_file)
-    with open(settings_database_path, "w") as settings_file:
+    with open(settings_database_path(vm_id), "w") as settings_file:
         json.dump(settings, settings_file)
 
 
-def reset_database():
+def reset_database(vm_id):
     """
     Resets the database by clearing all user and message data.
     """
@@ -125,5 +126,5 @@ def reset_database():
         "port_json": 54444,
     }
 
-    save_database(users, messages, settings)
+    save_database(vm_id, users, messages, settings)
     return users, messages, settings

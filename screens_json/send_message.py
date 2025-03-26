@@ -44,12 +44,16 @@ def send_message(
 
     # Format the message string for sending over the socket
     message_dict = {
-        "sender": current_user,
-        "recipient": recipient_str,
-        "message": message_str,
+        "version": 0,
+        "command": "send_msg",
+        "data": {
+            "sender": current_user,
+            "recipient": recipient_str,
+            "message": message_str,
+        },
     }
-    message = f"0 send_msg {json.dumps(message_dict)}".encode("utf-8")
-    s.sendall(message)
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
+    s().sendall(message)
 
     # Close the message window
     root.destroy()
@@ -59,13 +63,17 @@ def launch_home(s: socket.SocketType, root: tk.Tk, username: str):
     """
     Sends a request to refresh the home screen and closes the current window.
     """
-    message_dict = {"username": username}
-    message = f"0 refresh_home {json.dumps(message_dict)}".encode("utf-8")
-    s.sendall(message)
+    message_dict = {
+        "version": 0,
+        "command": "refresh_home",
+        "data": {"username": username},
+    }
+    message = (json.dumps(message_dict) + "\0").encode("utf-8")
+    s().sendall(message)
     root.destroy()
 
 
-def launch_window(s: socket.SocketType, current_user: str):
+def launch_window(s, current_user: str):
     """
     Launches the message sending window for the current user.
     """
