@@ -25,19 +25,51 @@ If the versions you see here do not line up, please follow the official steps to
 
 ## Running the Application
 
-### To run the client and server locally:
+### Running the Server
 
-Open up at least two terminal windows. In one terminal window, run the following command: `python main.py`. In the other terminal window, run the following command: `python client.py`. This will launch the server (`main.py`) and also the client (`client.py`). A graphical interface will show up - click on that and follow the UI to either sign up or login!
+There are a number of options that should be specified for the program to work. First, you will need to get your network IP - this can be found with the command `ipconfig getifaddr en0`. If you are running this on multiple computers, you should also run this command on the other computer as you will need this.
 
-To create more than one connecting client, run `python client.py` in a separate terminal window - each new terminal window will create a new client.
+We list out each of the possible parameters below and their corresponding definitions as well as an example:
 
-**Note:** Each account can only be logged in at one location at a time - this is to prevent any quirks from occurring when more than one device logs into the device at a time (e.g., deleting an account from one window while another window is still logged in).
+| Parameter                  | Definition                                                                                                                                  | Example                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `--host`                   | The IP address of the server to bind to.                                                                                                    | `--host 10.250.208.250`                   |
+| `--start_server_port`      | The port number on which the server will listen.                                                                                            | `--start_server_port 50000`               |
+| `--num_servers`            | The number of servers that will be launched                                                                                                 | `--num_servers 1`                         |
+| `--start_internal_port`    | The port number on which the internal server will listen.                                                                                   | `--start_internal_port 60000`             |
+| `--internal_other_servers` | Comma-separated list of other hosts that the internal server can connect to.                                                                | `--internal_other_servers 10.250.208.250` |
+| `--internal_other_ports`   | Comma-separated list of other ports that the internal server can connect to, matching the host from the `internal_other_servers`.           | `--internal_other_ports 60000`            |
+| `--internal_max_ports`     | Comma-separated list of maximum number of ports that the internal server should sweep, matching the host from the `internal_other_servers`. | `--internal_max_ports 10`                 |
 
-## Running with JSON Variants
+The command that I used to start up my server is:
 
-To run the server and client with the JSON variants, you will have to append `_json` to the end of the run file. In other words, to run the server, you will have to run `python main_json.py`, and to run the client, you will need to run `python client_json.py`.
+```
+python3 main_distributed.py --internal_other_servers 10.250.208.250,10.250.99.41 --internal_other_ports 60000,60000 --internal_max_ports 10,10 --num_servers 1 --start_internal_port 60005 --start_server_port 50005 --host 10.250.208.250
+```
 
-**Please note**: Because the two variants use inherently different communication protocols, we enforce no cross-communication by default by having the server on different ports (54400 for the default variant, 54444 for the JSON variant). It _is_ possible to run both servers at the same time, but will cause instability within the server and database and is _never_ recommended.
+The command that Victoria started up on the other computer was:
+
+```
+python3 main_distributed.py --internal_other_servers 10.250.208.250,10.250.99.41 --internal_other_ports 60000,60000 --internal_max_ports 10,10 --num_servers 1 --start_internal_port 60000 --start_server_port 50000 --host 10.250.99.41
+```
+
+I ran multiple servers on my own computer by adjusting the `start_internal_port` and `start_server_port` parameters to different numbers (usually corresponding with each other, but not required).
+
+### Running the Client
+
+Similar to the server, there are multiple options on running the client-side code to make sure that the client can connect to every possible server. We do this with the following parameters:
+
+| Parameter     | Definition                                                                                          | Example                  |
+| ------------- | --------------------------------------------------------------------------------------------------- | ------------------------ |
+| `--hosts`     | Comma-separated list of hosts that the client can connect to.                                       | `--hosts 10.250.208.250` |
+| `--ports`     | Comma-separated list of ports that the client can connect to, corresponding to each of the hosts.   | `--ports 50000`          |
+| `--num_ports` | Comma-separated list of the number of ports to sweep across for each of the defined hosts and ports | `--num_ports 10`         |
+
+The command that I used to start up a client (on either computer) is:
+
+```
+python3 client_json.py --hosts 10.250.208.250,10.250.99.41 --ports 50000,50000 --num_ports 10,10
+```
 
 ## Credits
 
