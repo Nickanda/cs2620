@@ -57,9 +57,7 @@ class FaultTolerantServer(multiprocessing.Process):
             "data": message,
         }
         sock.send(json.dumps(data_obj).encode("utf-8"))
-        print("BEFORE", data.outb.decode("utf-8"))
         data.outb = data.outb[data_length:]
-        print("AFTER", data.outb.decode("utf-8"))
 
     def send_error(
         self, sock: socket.socket, data_length: int, data, error_message: str
@@ -123,19 +121,19 @@ class FaultTolerantServer(multiprocessing.Process):
                 self.database["settings"],
             )
             return
-        print(1)
+
         if not username.isalnum():
             self.send_error(sock, data_length, data, "Username must be alphanumeric")
             return
-        print(2)
+
         if username in self.database["users"]:
             self.send_error(sock, data_length, data, "Username already exists")
             return
-        print(3)
+
         if password.strip() == "":
             self.send_error(sock, data_length, data, "Password cannot be empty")
             return
-        print(4)
+
         # Create new user in the users dict
         self.database["users"][username] = {
             "password": password,

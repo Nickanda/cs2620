@@ -159,7 +159,6 @@ def connect_socket(hosts, ports, num_ports):
 
             # Receive and decode data from the server
             s = get_socket()
-            print(s)
             if s is None:
                 print("Error: Could not connect to server!")
                 messagebox.showerror("Error", "Could not connect to server!")

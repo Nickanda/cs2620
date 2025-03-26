@@ -199,10 +199,6 @@ class InternalCommunicator(threading.Thread):
                                 data.outb = data.outb[len(received_data) :]
                         elif msg["command"] == "get_database":
                             for addr, sock in self.connected_servers:
-                                print(f"INTERNAL {self.id}: Sending database to {addr}")
-                                print(
-                                    f"INTERNAL {self.id}: Host: {msg['host']}, Port: {msg['port']}"
-                                )
                                 if addr[0] == msg["host"] and addr[1] == msg["port"]:
                                     sock.sendall(
                                         (
